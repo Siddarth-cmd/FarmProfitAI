@@ -6,8 +6,9 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 class MarketPrice(BaseModel):
     """Normalized market-price observation.
 
+    ``min_price``, ``max_price``, and ``modal_price`` are INR per kilogram.
     ``modal_price`` is the price FarmProfit uses for the initial recommendation.
-    This model does not fetch or invent market data.
+    This model does not fetch or invent market data, and it does not convert units.
     """
 
     commodity: str = Field(min_length=1)

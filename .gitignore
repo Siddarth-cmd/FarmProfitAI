@@ -15,7 +15,7 @@ build/
 .mypy_cache/
 .ruff_cache/
 
-# Environment and secrets
+# Environment and secrets (never commit DATA_GOV_API_KEY)
 .env
 .env.*
 !.env.example

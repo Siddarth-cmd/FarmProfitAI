@@ -42,3 +42,21 @@ class MarketPrice(BaseModel):
         if not (self.min_price <= self.modal_price <= self.max_price):
             raise ValueError("prices must satisfy min_price <= modal_price <= max_price")
         return self
+
+
+class MarketErrorDetails(BaseModel):
+    """Upstream error details when market data is unavailable."""
+
+    kind: str
+    message: str
+
+
+class MarketsResponse(BaseModel):
+    """Response envelope for the /markets endpoint communicating upstream availability."""
+
+    available: bool = True
+    records: list[MarketPrice] = Field(default_factory=list)
+    count: int = 0
+    source: str | None = "data.gov.in"
+    skipped_invalid: int = 0
+    error: MarketErrorDetails | None = None

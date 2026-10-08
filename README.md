@@ -90,6 +90,8 @@ uvicorn main:app --reload
 ```
 
 Health check: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
+Market data: [http://127.0.0.1:8000/markets](http://127.0.0.1:8000/markets)
+Interactive docs: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
 ## Run the frontend
 

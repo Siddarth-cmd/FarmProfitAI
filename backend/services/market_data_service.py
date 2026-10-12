@@ -236,13 +236,15 @@ def fetch_market_prices_with_fallback(
             error_message="No live market records matched the requested filters.",
         )
     if "data" in live_error_kinds and live_errors:
+        # Prefer specific data matching message over secondary API key warning
+        primary_msg = agmarknet_result.error_message or datagov_result.error_message
         return MarketDataFetchResult(
             records=[],
             source=None,
             available=False,
             using_fallback=False,
             error_kind="data",
-            error_message=" ".join(live_errors),
+            error_message=primary_msg or "No live market records matched the requested filters.",
         )
     return MarketDataFetchResult(
         records=[],

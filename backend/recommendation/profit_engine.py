@@ -1,7 +1,10 @@
+import math
+
 from models.profit_models import (
     MarketComparison,
     ProfitRequest,
     ProfitResult,
+    RealizableProfitBreakdown,
 )
 
 
@@ -13,6 +16,58 @@ def calculate_net_return(
     gross_revenue: float, transportation_cost: float, other_costs: float
 ) -> float:
     return gross_revenue - transportation_cost - other_costs
+
+
+def calculate_realizable_profit(
+    harvest_quantity_kg: float,
+    price_per_kg: float,
+    transportation_cost: float,
+    other_costs: float,
+    loss_percentage: float | None = None,
+) -> RealizableProfitBreakdown:
+    """Calculate realizable net return without inventing an unprovided loss rate."""
+
+    values = {
+        "harvest quantity": harvest_quantity_kg,
+        "price per kg": price_per_kg,
+        "transportation cost": transportation_cost,
+        "other costs": other_costs,
+    }
+    for label, value in values.items():
+        if not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+            raise ValueError(f"{label} must be a nonnegative finite number")
+
+    if loss_percentage is not None and (
+        not isinstance(loss_percentage, (int, float))
+        or not math.isfinite(loss_percentage)
+        or loss_percentage < 0
+        or loss_percentage > 100
+    ):
+        raise ValueError("loss percentage must be between 0 and 100")
+
+    assumed_loss = 0.0 if loss_percentage is None else float(loss_percentage)
+    estimated_loss_kg = harvest_quantity_kg * assumed_loss / 100
+    saleable_quantity_kg = harvest_quantity_kg - estimated_loss_kg
+    gross_revenue = saleable_quantity_kg * price_per_kg
+    net_return = gross_revenue - transportation_cost - other_costs
+
+    return RealizableProfitBreakdown(
+        harvest_quantity_kg=float(harvest_quantity_kg),
+        estimated_loss_kg=estimated_loss_kg,
+        saleable_quantity_kg=saleable_quantity_kg,
+        price_per_kg=float(price_per_kg),
+        gross_revenue=gross_revenue,
+        transportation_cost=float(transportation_cost),
+        other_costs=float(other_costs),
+        net_return=net_return,
+        loss_percentage=None if loss_percentage is None else float(loss_percentage),
+        losses_provided=loss_percentage is not None,
+        loss_data_status=(
+            "provided"
+            if loss_percentage is not None
+            else "not_provided_zero_baseline"
+        ),
+    )
 
 
 def _build_explanation(request: ProfitRequest, ranked: list[MarketComparison]) -> str:
@@ -48,9 +103,12 @@ def calculate_profits(request: ProfitRequest) -> ProfitResult:
 
     comparisons: list[MarketComparison] = []
     for market in request.markets:
-        gross_revenue = calculate_gross_revenue(request.quantity_kg, market.price_per_kg)
-        net_return = calculate_net_return(
-            gross_revenue, market.transportation_cost, market.other_costs
+        breakdown = calculate_realizable_profit(
+            harvest_quantity_kg=request.quantity_kg,
+            price_per_kg=market.price_per_kg,
+            transportation_cost=market.transportation_cost,
+            other_costs=market.other_costs,
+            loss_percentage=request.loss_percentage,
         )
         comparisons.append(
             MarketComparison(
@@ -58,9 +116,16 @@ def calculate_profits(request: ProfitRequest) -> ProfitResult:
                 price_per_kg=market.price_per_kg,
                 transportation_cost=market.transportation_cost,
                 other_costs=market.other_costs,
-                gross_revenue=gross_revenue,
-                net_return=net_return,
+                gross_revenue=breakdown.gross_revenue,
+                net_return=breakdown.net_return,
                 rank=0,
+                harvest_quantity_kg=breakdown.harvest_quantity_kg,
+                estimated_loss_kg=breakdown.estimated_loss_kg,
+                saleable_quantity_kg=breakdown.saleable_quantity_kg,
+                loss_percentage=breakdown.loss_percentage,
+                losses_provided=breakdown.losses_provided,
+                loss_data_status=breakdown.loss_data_status,
+                loss_data_scope=breakdown.loss_data_scope,
             )
         )
 

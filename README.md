@@ -93,6 +93,18 @@ Health check: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
 Market data: [http://127.0.0.1:8000/markets](http://127.0.0.1:8000/markets)
 Interactive docs: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
+### Manual market comparison
+
+The hackathon MVP does not perform road routing or automatic market discovery.
+After choosing a crop, district, and farm location, select one or more
+available market-price records from the market dropdown. Each market keeps its
+own provider-backed price and date.
+
+Transport quotes are optional. Enter a quote when it is known to compare net
+profit after transport. If no quote is supplied, the market remains visible but
+the comparison is marked incomplete; unknown transport is never treated as
+zero, and no distance is fabricated.
+
 ## Run the frontend
 
 ```bash

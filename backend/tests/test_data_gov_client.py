@@ -1,10 +1,13 @@
 import json
 from io import BytesIO
+import socket
+import ssl
 from urllib.error import HTTPError, URLError
 
 import pytest
 
 from services.data_gov_client import (
+    DataGovAuthError,
     DataGovConfigError,
     DataGovParseError,
     DataGovServiceError,
@@ -165,6 +168,43 @@ def test_non_success_http_response(monkeypatch):
         fetch_market_prices(api_key="test-key")
 
 
+@pytest.mark.parametrize("status", [401, 403])
+def test_authentication_http_errors_are_classified_without_exposing_key(monkeypatch, status):
+    def fake_urlopen(request, timeout=None):
+        raise HTTPError(request.full_url, status, "Unauthorized", hdrs=None, fp=BytesIO())
+
+    _patch_urlopen(monkeypatch, fake_urlopen)
+
+    with pytest.raises(DataGovAuthError, match=f"HTTP {status}") as exc_info:
+        fetch_market_prices(api_key="secret-test-key")
+    assert "secret-test-key" not in str(exc_info.value)
+
+    safe = try_fetch_market_prices(api_key="secret-test-key")
+    assert safe.error_kind == "auth"
+    assert "secret-test-key" not in (safe.error_message or "")
+
+
+@pytest.mark.parametrize(
+    ("raised", "expected"),
+    [
+        (ConnectionRefusedError("refused"), "unavailable"),
+        (ssl.SSLError("certificate verify failed"), "TLS connection failed"),
+        (socket.timeout("timed out"), "timed out"),
+    ],
+)
+def test_connection_failures_are_safe_and_classified(monkeypatch, raised, expected):
+    def fake_urlopen(request, timeout=None):
+        raise raised
+
+    _patch_urlopen(monkeypatch, fake_urlopen)
+
+    safe = try_fetch_market_prices(api_key="secret-test-key")
+    assert safe.available is False
+    assert safe.error_kind == "service"
+    assert expected in (safe.error_message or "")
+    assert "secret-test-key" not in (safe.error_message or "")
+
+
 def test_malformed_response(monkeypatch):
     def fake_urlopen_not_json(request, timeout=None):
         return _FakeResponse("not-json")
@@ -233,3 +273,29 @@ def test_quintal_prices_are_converted_to_per_kg(monkeypatch):
     assert second.min_price <= second.modal_price <= second.max_price
     assert (first.min_price, first.modal_price, first.max_price) == (24, 25, 26)
     assert (second.min_price, second.modal_price, second.max_price) == (29, 30, 31)
+
+
+@pytest.mark.parametrize(
+    "arrival_date",
+    ["2026-10-08T00:00:00Z", "08-10-2026"],
+)
+def test_supported_date_formats_are_normalized(monkeypatch, arrival_date):
+    def fake_urlopen(request, timeout=None):
+        return _FakeResponse(_ok_payload([_api_record(arrival_date=arrival_date)]))
+
+    _patch_urlopen(monkeypatch, fake_urlopen)
+    result = fetch_market_prices(api_key="test-key")
+
+    assert result.records[0].date.isoformat() == "2026-10-08"
+
+
+@pytest.mark.parametrize("field", ["min_price", "modal_price", "max_price"])
+def test_non_finite_prices_are_skipped(monkeypatch, field):
+    def fake_urlopen(request, timeout=None):
+        return _FakeResponse(_ok_payload([_api_record(**{field: "nan"})]))
+
+    _patch_urlopen(monkeypatch, fake_urlopen)
+    result = fetch_market_prices(api_key="test-key")
+
+    assert result.records == []
+    assert result.skipped_invalid == 1

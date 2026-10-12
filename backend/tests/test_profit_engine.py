@@ -3,6 +3,7 @@ from pydantic import ValidationError
 
 from models.profit_models import MarketOption, ProfitRequest
 from recommendation.profit_engine import calculate_profits
+from recommendation.profit_engine import calculate_realizable_profit
 
 
 def _request(**overrides) -> ProfitRequest:
@@ -128,3 +129,70 @@ def test_recommendation_selects_highest_net_return():
     assert result.comparisons[0].name == "Best Net"
     assert "Best Net" in result.explanation
     assert "High Price Far" in result.explanation
+
+
+@pytest.mark.parametrize("loss_percentage", [None, 0])
+def test_realizable_profit_omitted_or_zero_loss(loss_percentage):
+    result = calculate_realizable_profit(100, 20, 200, 50, loss_percentage)
+
+    assert result.harvest_quantity_kg == 100
+    assert result.estimated_loss_kg == 0
+    assert result.saleable_quantity_kg == 100
+    assert result.gross_revenue == 2000
+    assert result.net_return == 1750
+    assert result.losses_provided is (loss_percentage is not None)
+
+
+def test_realizable_profit_positive_loss():
+    result = calculate_realizable_profit(100, 20, 200, 50, 10)
+
+    assert result.estimated_loss_kg == 10
+    assert result.saleable_quantity_kg == 90
+    assert result.gross_revenue == 1800
+    assert result.net_return == 1550
+    assert result.losses_provided is True
+
+
+def test_realizable_profit_full_loss():
+    result = calculate_realizable_profit(100, 20, 200, 50, 100)
+
+    assert result.saleable_quantity_kg == 0
+    assert result.gross_revenue == 0
+    assert result.net_return == -250
+
+
+def test_realizable_profit_zero_costs():
+    result = calculate_realizable_profit(100, 20, 0, 0)
+
+    assert result.net_return == 2000
+
+
+@pytest.mark.parametrize(
+    ("quantity", "price", "transport", "other"),
+    [
+        (-1, 20, 0, 0),
+        (100, -1, 0, 0),
+        (100, 20, -1, 0),
+        (100, 20, 0, -1),
+    ],
+)
+def test_realizable_profit_rejects_negative_values(quantity, price, transport, other):
+    with pytest.raises(ValueError, match="nonnegative"):
+        calculate_realizable_profit(quantity, price, transport, other)
+
+
+@pytest.mark.parametrize("loss_percentage", [-0.1, 100.1])
+def test_realizable_profit_rejects_invalid_loss_percentage(loss_percentage):
+    with pytest.raises(ValueError, match="between 0 and 100"):
+        calculate_realizable_profit(100, 20, 0, 0, loss_percentage)
+
+
+def test_calculate_profits_uses_realizable_breakdown():
+    result = calculate_profits(_request(loss_percentage=25))
+    comparison = result.comparisons[0]
+
+    assert comparison.estimated_loss_kg == 25
+    assert comparison.saleable_quantity_kg == 75
+    assert comparison.gross_revenue == 1500
+    assert comparison.net_return == 1250
+    assert comparison.losses_provided is True

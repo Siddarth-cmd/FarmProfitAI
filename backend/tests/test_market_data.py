@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from models.market_models import MarketPrice
+from services.local_fallback_provider import fetch_fallback_market_prices
 from services.market_data_service import normalize_market_price, normalize_market_prices
 
 
@@ -75,3 +76,37 @@ def test_invalid_price_range_is_rejected():
 def test_invalid_date_is_rejected():
     with pytest.raises(ValidationError):
         MarketPrice.model_validate(_valid_record(date="2026-13-40"))
+
+
+def test_fallback_data_normalizes_to_market_prices():
+    result = fetch_fallback_market_prices(commodity="Tomato", state="Karnataka", limit=5)
+
+    assert result.available is True
+    assert result.source == "farmprofit-local-fallback"
+    assert result.using_fallback is True
+    assert len(result.records) >= 2
+    assert all(isinstance(record, MarketPrice) for record in result.records)
+    assert {record.market for record in result.records} >= {"Mysore", "Bangalore"}
+
+
+def test_fallback_data_filters_by_crop_state_and_district():
+    result = fetch_fallback_market_prices(
+        commodity="Maize",
+        state="Karnataka",
+        district="Hassan",
+        limit=10,
+    )
+
+    assert result.available is True
+    assert [record.market for record in result.records] == ["Hassan"]
+    assert result.records[0].commodity == "Maize"
+
+
+def test_fallback_data_unavailable_when_no_records_match():
+    result = fetch_fallback_market_prices(commodity="Dragonfruit", limit=10)
+
+    assert result.available is False
+    assert result.records == []
+    assert result.source is None
+    assert result.using_fallback is False
+    assert result.error_kind == "data"

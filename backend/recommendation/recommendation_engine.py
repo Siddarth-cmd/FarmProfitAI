@@ -7,6 +7,7 @@ Reuses the profit calculation engine to avoid duplicate calculation logic.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping, Sequence
 from datetime import date
 from typing import Any, Protocol, runtime_checkable
@@ -16,6 +17,8 @@ from pydantic import BaseModel, Field, ValidationError
 from models.market_models import MarketPrice
 from models.profit_models import MarketComparison, MarketOption, ProfitRequest
 from recommendation.profit_engine import calculate_profits
+from core.logistics import LogisticsConfig
+from services.distance_provider import RoadDistanceProvider
 
 
 @runtime_checkable
@@ -134,7 +137,15 @@ class RecommendationResult(BaseModel):
     expected_net_return: float = 0.0
     ranked_markets: list[MarketComparison] = Field(default_factory=list)
     alternatives: list[MarketComparison] = Field(default_factory=list)
+    market_dates: dict[str, date] = Field(default_factory=dict)
+    loss_percentage: float | None = None
+    losses_provided: bool = False
+    estimated_loss_kg: float = 0.0
+    saleable_quantity_kg: float = 0.0
+    loss_data_status: str = "not_provided_zero_baseline"
+    loss_data_scope: str = "request_level"
     explanation: str = ""
+    incomplete_markets: list[MarketComparison] = Field(default_factory=list)
 
     @property
     def gross_revenue(self) -> float:
@@ -233,6 +244,17 @@ def _resolve_other_cost(
     return 0.0
 
 
+def _mapped_cost(costs: Mapping[str, float] | None, market_name: str) -> float | None:
+    if not isinstance(costs, Mapping) or not costs:
+        return None
+    for key, value in costs.items():
+        if key.strip().lower() == market_name.strip().lower():
+            return float(value)
+        if key.split("(")[0].strip().lower() == market_name.split("(")[0].strip().lower():
+            return float(value)
+    return None
+
+
 def recommend_market(
     crop: str,
     quantity_kg: float,
@@ -241,6 +263,10 @@ def recommend_market(
     transportation_costs: TransportationCostProvider | Mapping[str, float] | float | None = None,
     transportation_cost_provider: TransportationCostProvider | None = None,
     other_costs: float | Mapping[str, float] | None = None,
+    loss_percentage: float | None = None,
+    distance_provider: RoadDistanceProvider | None = None,
+    logistics_config: LogisticsConfig | None = None,
+    transportation_cost_basis: str | Mapping[str, str] | None = None,
 ) -> RecommendationResult:
     """Recommend the market maximizing expected net return.
 
@@ -258,8 +284,15 @@ def recommend_market(
     except (TypeError, ValueError) as exc:
         raise ValueError("quantity_kg must be a valid number") from exc
 
-    if qty <= 0:
+    if not math.isfinite(qty) or qty <= 0:
         raise ValueError("quantity_kg must be greater than zero")
+    if loss_percentage is not None and (
+        not isinstance(loss_percentage, (int, float))
+        or not math.isfinite(loss_percentage)
+        or loss_percentage < 0
+        or loss_percentage > 100
+    ):
+        raise ValueError("loss percentage must be between 0 and 100")
 
     crop_clean = crop.strip()
     location_clean = farmer_location.strip()
@@ -283,6 +316,10 @@ def recommend_market(
     transport_provider = resolve_transportation_cost_provider(
         transportation_cost_provider if transportation_cost_provider is not None else transportation_costs
     )
+    logistics = logistics_config or LogisticsConfig()
+    incomplete_markets: list[MarketComparison] = []
+    route_results: dict[str, Any] = {}
+    basis_by_market: dict[str, str] = {}
 
     # Validate and deduplicate candidate market prices safely
     valid_by_market: dict[str, MarketPrice] = {}
@@ -295,9 +332,12 @@ def recommend_market(
                 rec = MarketPrice.model_validate(item)
             except (ValidationError, TypeError, ValueError):
                 continue
-        elif hasattr(item, "market") and hasattr(item, "modal_price"):
+        elif hasattr(item, "market") and (
+            hasattr(item, "recommendation_price_per_kg")
+            or hasattr(item, "modal_price")
+        ):
             try:
-                if getattr(item, "modal_price") < 0:
+                if getattr(item, "recommendation_price_per_kg", None) is None:
                     continue
                 rec = item
             except Exception:
@@ -306,7 +346,15 @@ def recommend_market(
         if rec is None or not getattr(rec, "market", "").strip():
             continue
 
-        if rec.modal_price < 0:
+        price_per_kg = getattr(rec, "recommendation_price_per_kg", None)
+        if price_per_kg is None:
+            price_per_kg = getattr(rec, "modal_price", None)
+        if (
+            price_per_kg is None
+            or not isinstance(price_per_kg, (int, float))
+            or not math.isfinite(price_per_kg)
+            or price_per_kg < 0
+        ):
             continue
 
         m_name = rec.market.strip()
@@ -337,19 +385,190 @@ def recommend_market(
     # Convert candidate market prices to MarketOptions for the Profit Engine
     market_options: list[MarketOption] = []
     for m_name, rec in valid_by_market.items():
-        t_cost = transport_provider.get_transportation_cost(
-            farmer_location=location_clean,
-            market_name=m_name,
-            quantity_kg=qty,
+        price_per_kg = getattr(rec, "recommendation_price_per_kg", None)
+        if price_per_kg is None:
+            price_per_kg = getattr(rec, "modal_price", None)
+        if price_per_kg is None or not math.isfinite(price_per_kg):
+            continue
+        quoted_cost = (
+            _mapped_cost(transportation_costs, m_name)
+            if isinstance(transportation_costs, Mapping)
+            else None
         )
+        if quoted_cost is not None:
+            t_cost = quoted_cost
+            cost_basis = (
+                transportation_cost_basis.get(m_name, "actual_quote")
+                if isinstance(transportation_cost_basis, Mapping)
+                else transportation_cost_basis or "actual_quote"
+            )
+            if cost_basis not in {"actual_quote", "estimated"}:
+                raise ValueError("transportation cost basis must be actual_quote or estimated")
+            basis_by_market[m_name] = cost_basis
+            distance_result = None
+            trips_required = None
+            estimated_cost = None
+        elif distance_provider is not None:
+            try:
+                distance_result = distance_provider.get_distance_km(location_clean, m_name)
+            except (TimeoutError, OSError, ValueError) as exc:
+                distance_result = type(
+                    "_DistanceFailure",
+                    (),
+                    {
+                        "distance_km": None,
+                        "source": "routing_provider",
+                        "status": "error",
+                        "error": str(exc) or "Road distance provider failed.",
+                    },
+                )()
+            route_results[m_name] = distance_result
+            if (
+                distance_result.distance_km is None
+                or not math.isfinite(distance_result.distance_km)
+                or distance_result.distance_km < 0
+            ):
+                incomplete_markets.append(
+                    MarketComparison(
+                        name=m_name,
+                        price_per_kg=float(price_per_kg),
+                        transportation_cost=0.0,
+                        other_costs=_resolve_other_cost(other_costs, m_name),
+                        gross_revenue=0.0,
+                        net_return=0.0,
+                        rank=0,
+                        price_type=rec.price_type,
+                        is_stale=rec.is_stale,
+                        freshness_status=rec.freshness_status,
+                        distance_source=distance_result.source,
+                        distance_status=distance_result.status,
+                        transport_cost_basis="unavailable",
+                        transport_error=distance_result.error or "Road distance unavailable.",
+                        comparable=False,
+                    )
+                )
+                continue
+            trips_required = math.ceil(qty / logistics.vehicle_capacity_kg) if logistics.transport_mode == "dedicated_vehicle" else 1
+            if logistics.transport_mode == "shared_load":
+                # Shared load transport calculation:
+                # 1. If farmer gave a direct shared_rate (e.g. ₹30/crate or ₹1.5/kg)
+                if logistics.shared_rate is not None:
+                    if logistics.shared_rate_type == "per_crate":
+                        crates = math.ceil(qty / logistics.crate_capacity_kg)
+                        estimated_cost = crates * logistics.shared_rate
+                    elif logistics.shared_rate_type == "per_bag":
+                        bags = math.ceil(qty / logistics.bag_capacity_kg)
+                        estimated_cost = bags * logistics.shared_rate
+                    else:  # per_kg
+                        estimated_cost = qty * logistics.shared_rate
+                else:
+                    # Distance-aware shared load rate per kg (e.g. ₹0.03/kg/km * distance * kg)
+                    rate_per_kg = distance_result.distance_km * logistics.shared_rate_per_kg_per_km
+                    # Floor of ₹0.5/kg minimum shared handling
+                    rate_per_kg = max(0.5, rate_per_kg)
+                    estimated_cost = qty * rate_per_kg
+            else:
+                # Dedicated vehicle calculation (trips * distance * rate/km)
+                estimated_cost = trips_required * distance_result.distance_km * logistics.vehicle_rate_per_km
+
+            if not math.isfinite(estimated_cost) or estimated_cost < 0:
+                raise ValueError("estimated transportation cost must be finite and non-negative")
+            t_cost = estimated_cost
+            cost_basis = "estimated"
+            basis_by_market[m_name] = cost_basis
+        else:
+            if (
+                transportation_cost_provider is None
+                and (
+                    transportation_costs is None
+                    or isinstance(transportation_costs, Mapping)
+                    and not transportation_costs
+                )
+            ):
+                incomplete_markets.append(
+                    MarketComparison(
+                        name=m_name,
+                        price_per_kg=float(price_per_kg),
+                        transportation_cost=0.0,
+                        other_costs=_resolve_other_cost(other_costs, m_name),
+                        gross_revenue=0.0,
+                        net_return=0.0,
+                        rank=0,
+                        price_type=rec.price_type,
+                        is_stale=rec.is_stale,
+                        freshness_status=rec.freshness_status,
+                        transport_cost_basis="unavailable",
+                        transport_error=(
+                            "Transport cost unavailable. Enter an actual transport quote "
+                            "to compare net profit."
+                        ),
+                        comparable=False,
+                    )
+                )
+                continue
+            # Preserve legacy direct callers that explicitly supplied a provider or cost.
+            t_cost = transport_provider.get_transportation_cost(
+                farmer_location=location_clean,
+                market_name=m_name,
+                quantity_kg=qty,
+            )
+            cost_basis = "actual_quote"
+            distance_result = None
+            trips_required = None
+            estimated_cost = None
         o_cost = _resolve_other_cost(other_costs, m_name)
         market_options.append(
             MarketOption(
                 name=m_name,
-                price_per_kg=float(rec.modal_price),
+                price_per_kg=float(price_per_kg),
                 transportation_cost=float(t_cost),
                 other_costs=float(o_cost),
             )
+        )
+
+    if not market_options:
+        errors = [market.transport_error for market in incomplete_markets if market.transport_error]
+        affected_markets = ", ".join(market.name for market in incomplete_markets)
+        if errors and all("provider is configured" in error.lower() for error in errors):
+            explanation = (
+                "No comparable market has a verified transport cost or road route. "
+                "No road-distance provider is configured. Enter an actual transport quote "
+                f"for a market before comparing net profit. "
+                f"Affected markets: {affected_markets}."
+            )
+        elif errors:
+            first_error = errors[0]
+            error_lower = first_error.lower()
+            if "geocoding unavailable" in error_lower:
+                detail = (
+                    "Transport cost is unavailable for the selected market. "
+                    "Enter an actual transport quote to compare net profit."
+                )
+            elif "no road route was found" in error_lower:
+                detail = (
+                    "Transport cost is unavailable for the selected market. "
+                    "Enter an actual transport quote to compare net profit."
+                )
+            else:
+                detail = f"Route lookup failed: {first_error}"
+            explanation = (
+                f"No comparable market has a verified transport cost. {detail} "
+                f"Affected markets: {affected_markets}."
+            )
+        else:
+            explanation = (
+                "No comparable market has a verified transport cost. "
+                f"Affected markets: {affected_markets}."
+            )
+        return RecommendationResult(
+            crop=crop_clean,
+            quantity_kg=qty,
+            farmer_location=location_clean,
+            recommended_market=None,
+            ranked_markets=[],
+            alternatives=[],
+            incomplete_markets=incomplete_markets,
+            explanation=explanation,
         )
 
     # Reuse existing Profit Engine
@@ -358,8 +577,34 @@ def recommend_market(
         quantity_kg=qty,
         location=location_clean,
         markets=market_options,
+        loss_percentage=loss_percentage,
     )
     profit_result = calculate_profits(profit_request)
+
+    comparison_metadata = {rec.market: rec for rec in valid_by_market.values()}
+    for comparison in profit_result.comparisons:
+        source_record = comparison_metadata.get(comparison.name)
+        if source_record is not None:
+            comparison.price_type = source_record.price_type
+            comparison.is_stale = source_record.is_stale
+            comparison.freshness_status = source_record.freshness_status
+            comparison.confidence_level = getattr(source_record, "confidence_level", "medium")
+            comparison.data_age_days = getattr(source_record, "data_age_days", None)
+            comparison.observation_date = str(source_record.date) if getattr(source_record, "date", None) else None
+            comparison.source_provider = getattr(source_record, "source_provider", None)
+            comparison.transport_mode = logistics.transport_mode
+            if distance_provider is not None and _mapped_cost(transportation_costs, comparison.name) is None:
+                distance_result = route_results[comparison.name]
+                comparison.distance_km = distance_result.distance_km
+                comparison.distance_source = distance_result.source
+                comparison.distance_status = distance_result.status
+                comparison.vehicle_capacity_kg = logistics.vehicle_capacity_kg
+                comparison.vehicle_rate_per_km = logistics.vehicle_rate_per_km
+                comparison.trips_required = math.ceil(qty / logistics.vehicle_capacity_kg) if logistics.transport_mode == "dedicated_vehicle" else 1
+                comparison.estimated_transport_cost = comparison.transportation_cost
+                comparison.transport_cost_basis = basis_by_market[comparison.name]
+            elif _mapped_cost(transportation_costs, comparison.name) is not None:
+                comparison.transport_cost_basis = basis_by_market[comparison.name]
 
     best = profit_result.comparisons[0]
     alternatives = profit_result.comparisons[1:]
@@ -381,7 +626,14 @@ def recommend_market(
         expected_net_return=best.net_return,
         ranked_markets=profit_result.comparisons,
         alternatives=alternatives,
+        loss_percentage=best.loss_percentage,
+        losses_provided=best.losses_provided,
+        estimated_loss_kg=best.estimated_loss_kg,
+        saleable_quantity_kg=best.saleable_quantity_kg,
+        loss_data_status=best.loss_data_status,
+        loss_data_scope=best.loss_data_scope,
         explanation=explanation,
+        incomplete_markets=incomplete_markets,
     )
 
 
@@ -403,6 +655,7 @@ class RecommendationEngine:
         farmer_location: str,
         markets: Sequence[MarketPrice | Mapping[str, Any]] | None = None,
         other_costs: float | Mapping[str, float] | None = None,
+        loss_percentage: float | None = None,
     ) -> RecommendationResult:
         return recommend_market(
             crop=crop,
@@ -411,4 +664,5 @@ class RecommendationEngine:
             markets=markets,
             transportation_cost_provider=self.transportation_cost_provider,
             other_costs=other_costs,
+            loss_percentage=loss_percentage,
         )

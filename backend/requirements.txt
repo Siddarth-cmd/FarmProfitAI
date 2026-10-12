@@ -3,3 +3,4 @@ uvicorn[standard]
 pytest
 python-dotenv
 httpx
+pydantic

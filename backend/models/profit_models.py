@@ -1,3 +1,5 @@
+from typing import Any, Literal
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -25,6 +27,7 @@ class ProfitRequest(BaseModel):
     quantity_kg: float = Field(gt=0)
     location: str = Field(min_length=1)
     markets: list[MarketOption] = Field(min_length=1)
+    loss_percentage: float | None = Field(default=None, ge=0, le=100)
 
     @field_validator("crop", "location")
     @classmethod
@@ -45,6 +48,54 @@ class MarketComparison(BaseModel):
     gross_revenue: float
     net_return: float
     rank: int
+    harvest_quantity_kg: float = 0.0
+    estimated_loss_kg: float = 0.0
+    saleable_quantity_kg: float = 0.0
+    loss_percentage: float | None = None
+    losses_provided: bool = False
+    loss_data_status: Literal["provided", "not_provided_zero_baseline"] = (
+        "not_provided_zero_baseline"
+    )
+    loss_data_scope: Literal["request_level"] = "request_level"
+    price_type: str = "modal_price"
+    is_stale: bool = False
+    freshness_status: str = "not_evaluated"
+    confidence_level: str = "medium"  # "high", "medium", "low"
+    data_age_days: int | None = None
+    observation_date: str | None = None
+    source_provider: str | None = None
+    distance_km: float | None = None
+    distance_source: str = "unavailable"
+    distance_status: str = "unavailable"
+    transport_mode: Literal["dedicated_vehicle", "shared_load"] = "dedicated_vehicle"
+    shared_rate_applied: float | None = None
+    vehicle_capacity_kg: float | None = None
+    vehicle_rate_per_km: float | None = None
+    trips_required: int | None = None
+    estimated_transport_cost: float | None = None
+    transport_cost_basis: Literal["actual_quote", "estimated", "unavailable"] = "unavailable"
+    transport_error: str | None = None
+    comparable: bool = True
+    crop_breakdowns: list[dict[str, Any]] = []
+
+
+class RealizableProfitBreakdown(BaseModel):
+    """Explainable realizable-return calculation for one market."""
+
+    harvest_quantity_kg: float
+    estimated_loss_kg: float
+    saleable_quantity_kg: float
+    price_per_kg: float
+    gross_revenue: float
+    transportation_cost: float
+    other_costs: float
+    net_return: float
+    loss_percentage: float | None = None
+    losses_provided: bool = False
+    loss_data_status: Literal["provided", "not_provided_zero_baseline"] = (
+        "not_provided_zero_baseline"
+    )
+    loss_data_scope: Literal["request_level"] = "request_level"
 
 
 class ProfitResult(BaseModel):
@@ -57,3 +108,7 @@ class ProfitResult(BaseModel):
     recommended_market: str
     recommended_net_return: float
     explanation: str
+    is_multi_crop: bool = False
+    total_quantity_kg: float | None = None
+    crop_breakdowns: dict[str, list[dict[str, Any]]] = {}
+    confidence_level: str = "medium"

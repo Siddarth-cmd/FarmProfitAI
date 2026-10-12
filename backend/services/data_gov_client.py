@@ -12,7 +12,10 @@ Conversion happens only in this mapping layer: price_per_kg = price_per_quintal 
 from __future__ import annotations
 
 import json
+import math
 import os
+import socket
+import ssl
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -26,6 +29,7 @@ from pydantic import ValidationError
 
 from models.market_models import MarketPrice
 from services.market_data_service import normalize_market_price
+from services.market_catalogue import find_catalogue_entries, normalize_catalogue_name
 
 RESOURCE_URL = (
     "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
@@ -52,6 +56,10 @@ class DataGovServiceError(DataGovError):
     """Network, timeout, or non-success HTTP response from Data.gov.in."""
 
 
+class DataGovAuthError(DataGovServiceError):
+    """Data.gov.in rejected the configured API key or permissions."""
+
+
 class DataGovParseError(DataGovError):
     """Response body could not be parsed as the expected JSON payload."""
 
@@ -68,6 +76,7 @@ class MarketDataFetchResult:
     skipped_invalid: int = 0
     source: str | None = SOURCE_NAME
     available: bool = True
+    using_fallback: bool = False
     error_kind: str | None = None
     error_message: str | None = None
 
@@ -98,6 +107,10 @@ def _parse_arrival_date(value: object) -> str | None:
             return datetime.strptime(text, fmt).date().isoformat()
         except ValueError:
             continue
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00")).date().isoformat()
+    except ValueError:
+        return None
     return None
 
 
@@ -105,7 +118,8 @@ def _price_per_quintal_to_per_kg(value: object) -> float | None:
     """Convert an Agmarknet INR/quintal field to INR/kg. Does not convert MarketPrice values."""
 
     try:
-        return float(value) / KG_PER_QUINTAL
+        converted = float(value) / KG_PER_QUINTAL
+        return converted if math.isfinite(converted) and converted >= 0 else None
     except (TypeError, ValueError):
         return None
 
@@ -168,15 +182,27 @@ def _read_http_body(url: str) -> tuple[int, bytes]:
             status = getattr(response, "status", None) or response.getcode()
             body = response.read()
     except HTTPError as exc:
-        raise DataGovServiceError(
-            f"Data.gov.in returned HTTP {exc.code}"
-        ) from exc
-    except TimeoutError as exc:
+        error_type = DataGovAuthError if exc.code in (401, 403) else DataGovServiceError
+        raise error_type(f"Data.gov.in returned HTTP {exc.code}") from exc
+    except (TimeoutError, socket.timeout) as exc:
         raise DataGovServiceError("Data.gov.in request timed out") from exc
+    except ssl.SSLError as exc:
+        raise DataGovServiceError("Data.gov.in TLS connection failed") from exc
     except URLError as exc:
-        raise DataGovServiceError(
-            f"Data.gov.in is unavailable: {exc.reason}"
-        ) from exc
+        reason = exc.reason
+        if isinstance(reason, (TimeoutError, socket.timeout)):
+            message = "Data.gov.in request timed out"
+        elif isinstance(reason, ssl.SSLError):
+            message = "Data.gov.in TLS connection failed"
+        else:
+            message = "Data.gov.in is unavailable"
+        raise DataGovServiceError(message) from exc
+    except OSError as exc:
+        if isinstance(exc, (TimeoutError, socket.timeout)):
+            message = "Data.gov.in request timed out"
+        else:
+            message = "Data.gov.in is unavailable"
+        raise DataGovServiceError(message) from exc
 
     if status < 200 or status >= 300:
         raise DataGovServiceError(f"Data.gov.in returned HTTP {status}")
@@ -216,12 +242,32 @@ def _normalize_records(raw_records: list[Any]) -> tuple[list[MarketPrice], int]:
     return valid, skipped
 
 
+def _matches_market_names(record: MarketPrice, market_names: list[str] | None) -> bool:
+    if not market_names:
+        return True
+    record_key = normalize_catalogue_name(record.market)
+    requested_keys = {
+        normalize_catalogue_name(name)
+        for name in market_names
+        if str(name).strip()
+    }
+    if record_key in requested_keys:
+        return True
+    entries = find_catalogue_entries([name for name in market_names if str(name).strip()])
+    return any(
+        normalize_catalogue_name(record.market) == normalize_catalogue_name(entry.name)
+        and normalize_catalogue_name(record.district) == normalize_catalogue_name(entry.district)
+        for entry in entries
+    )
+
+
 def fetch_market_prices(
     *,
     limit: int = DEFAULT_LIMIT,
     commodity: str | None = None,
     state: str | None = None,
     district: str | None = None,
+    market_names: list[str] | None = None,
     api_key: str | None = None,
 ) -> MarketDataFetchResult:
     """Fetch and validate mandi prices from Data.gov.in.
@@ -237,11 +283,17 @@ def fetch_market_prices(
     _status, body = _read_http_body(url)
     raw_records = _parse_records_payload(body)
     records, skipped = _normalize_records(raw_records)
+    records = [
+        record for record in records
+        if _matches_market_names(record, market_names)
+    ]
     return MarketDataFetchResult(
         records=records,
         skipped_invalid=skipped,
         source=SOURCE_NAME,
-        available=True,
+        available=bool(records),
+        error_kind=None if records else "data",
+        error_message=None if records else "No Data.gov.in market records matched the requested filters.",
     )
 
 
@@ -251,6 +303,7 @@ def try_fetch_market_prices(
     commodity: str | None = None,
     state: str | None = None,
     district: str | None = None,
+    market_names: list[str] | None = None,
     api_key: str | None = None,
 ) -> MarketDataFetchResult:
     """Same as fetch_market_prices, but never raises.
@@ -264,6 +317,7 @@ def try_fetch_market_prices(
             commodity=commodity,
             state=state,
             district=district,
+            market_names=market_names,
             api_key=api_key,
         )
     except DataGovConfigError as exc:
@@ -272,6 +326,14 @@ def try_fetch_market_prices(
             source=None,
             available=False,
             error_kind="config",
+            error_message=str(exc),
+        )
+    except DataGovAuthError as exc:
+        return MarketDataFetchResult(
+            records=[],
+            source=None,
+            available=False,
+            error_kind="auth",
             error_message=str(exc),
         )
     except DataGovServiceError as exc:

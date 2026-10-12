@@ -6,6 +6,7 @@ import {
   RotateCcw,
 } from 'lucide-react'
 import { localizeBackendText, useLanguage } from '../localization'
+import AITimingForecast from './AITimingForecast'
 
 function formatINR(val) {
   if (val === undefined || val === null || isNaN(val)) return '0'
@@ -396,6 +397,15 @@ export default function RecommendationResult({ data, meta, onReset }) {
             </div>
           )}
         </div>
+
+        {/* AI Real-Time Timing Advisor & 7-Day Price Forecast */}
+        <AITimingForecast
+          commodity={crop}
+          market={recommended_market}
+          district={bestMarket?.district || null}
+          quantityKg={quantity_kg}
+          transportCost={transportation_cost}
+        />
 
         {/* Profit Breakdown Card */}
         <div className="premium-card rounded-3xl p-6 sm:p-10 mb-10">

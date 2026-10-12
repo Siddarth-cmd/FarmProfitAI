@@ -241,3 +241,87 @@ export async function getRecommendation(payload) {
     }
   }
 }
+
+/**
+ * Fetch real-time price tracking and multi-day forecast.
+ */
+export async function fetchPriceForecast(commodity, market, district = null, days = 7) {
+  const params = new URLSearchParams({
+    commodity: commodity.trim(),
+    market: market.trim(),
+    days: String(days),
+  })
+  if (district && district.trim()) {
+    params.set('district', district.trim())
+  }
+
+  const url = `${API_BASE}/forecast/prices?${params.toString()}`
+  try {
+    const response = await apiFetch(url, { method: 'GET', headers: { Accept: 'application/json' } }, 15000)
+    if (!response.ok) {
+      const detail = await extractErrorDetail(response, 'Failed to fetch price forecast')
+      return { available: false, error: { message: detail } }
+    }
+    const data = await response.json()
+    return { available: true, ...data }
+  } catch (err) {
+    return {
+      available: false,
+      error: { message: err?.name === 'AbortError' ? 'Forecast timed out.' : 'Network error fetching forecast.' },
+    }
+  }
+}
+
+/**
+ * Fetch Sell Now vs. Hold timing analysis.
+ */
+export async function fetchTimingAdvice(payload) {
+  const url = `${API_BASE}/forecast/timing-advice`
+  try {
+    const response = await apiFetch(
+      url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload),
+      },
+      15000,
+    )
+    if (!response.ok) {
+      const detail = await extractErrorDetail(response, 'Failed to calculate timing advice')
+      return { available: false, error: { message: detail } }
+    }
+    const data = await response.json()
+    return { available: true, ...data }
+  } catch (err) {
+    return {
+      available: false,
+      error: { message: err?.name === 'AbortError' ? 'Timing calculation timed out.' : 'Network error.' },
+    }
+  }
+}
+
+/**
+ * Fetch market price volatility metrics.
+ */
+export async function fetchMarketVolatility(commodity, market, district = null) {
+  const params = new URLSearchParams({ commodity: commodity.trim(), market: market.trim() })
+  if (district && district.trim()) {
+    params.set('district', district.trim())
+  }
+  const url = `${API_BASE}/forecast/volatility?${params.toString()}`
+  try {
+    const response = await apiFetch(url, { method: 'GET', headers: { Accept: 'application/json' } }, 15000)
+    if (!response.ok) {
+      const detail = await extractErrorDetail(response, 'Failed to fetch volatility metrics')
+      return { available: false, error: { message: detail } }
+    }
+    const data = await response.json()
+    return { available: true, ...data }
+  } catch (err) {
+    return {
+      available: false,
+      error: { message: 'Network error fetching volatility.' },
+    }
+  }
+}

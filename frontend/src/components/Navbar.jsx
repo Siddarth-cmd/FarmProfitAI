@@ -8,6 +8,7 @@ export default function Navbar({ activeTab, setActiveTab, onGetStarted }) {
 
   const navLinks = [
     { id: 'home', label: t('navHome') },
+    { id: 'forecast', label: 'AI Forecast' },
     { id: 'markets', label: t('navMarkets') },
     { id: 'how-it-works', label: t('navHow') },
   ]

@@ -24,6 +24,10 @@ export default defineConfig({
         target: backendTarget,
         changeOrigin: true,
       },
+      '/forecast': {
+        target: backendTarget,
+        changeOrigin: true,
+      },
       '/health': {
         target: backendTarget,
         changeOrigin: true,
@@ -45,6 +49,10 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/recommend': {
+        target: backendTarget,
+        changeOrigin: true,
+      },
+      '/forecast': {
         target: backendTarget,
         changeOrigin: true,
       },

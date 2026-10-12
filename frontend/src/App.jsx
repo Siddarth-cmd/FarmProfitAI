@@ -5,6 +5,7 @@ import FarmerInput from './components/FarmerInput'
 import RecommendationResult from './components/RecommendationResult'
 import WhatIfSimulator from './components/WhatIfSimulator'
 import MarketExplorer from './components/MarketExplorer'
+import AIForkcastExplorer from './components/AIForkcastExplorer'
 import HowItWorks from './components/HowItWorks'
 import Footer from './components/Footer'
 import { getRecommendation } from './services/api'
@@ -128,6 +129,10 @@ function FarmProfitApp() {
               </div>
             )}
           </>
+        )}
+
+        {activeTab === 'forecast' && (
+          <AIForkcastExplorer />
         )}
 
         {activeTab === 'markets' && (

@@ -12,6 +12,7 @@ load_dotenv(_backend_dir / ".env")
 
 from api.markets import router as markets_router
 from api.recommendation import router as recommendation_router
+from api.forecast import router as forecast_router
 from services.market_data_service import _background_ingestion_loop
 
 from contextlib import asynccontextmanager
@@ -49,6 +50,7 @@ app.add_middleware(
 
 app.include_router(markets_router)
 app.include_router(recommendation_router)
+app.include_router(forecast_router)
 
 @app.get("/health")
 def health() -> dict[str, str]:

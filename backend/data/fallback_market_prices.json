@@ -1,0 +1,74 @@
+[
+  {
+    "commodity": "Tomato",
+    "variety": "Local",
+    "state": "Karnataka",
+    "district": "Mysore",
+    "market": "Mysore",
+    "date": "2026-10-10",
+    "min_price": 20.0,
+    "modal_price": 25.0,
+    "max_price": 28.0,
+    "source_provider": "farmprofit-local-fallback"
+  },
+  {
+    "commodity": "Tomato",
+    "variety": "Local",
+    "state": "Karnataka",
+    "district": "Bangalore",
+    "market": "Bangalore",
+    "date": "2026-10-10",
+    "min_price": 22.0,
+    "modal_price": 27.0,
+    "max_price": 30.0,
+    "source_provider": "farmprofit-local-fallback"
+  },
+  {
+    "commodity": "Tomato",
+    "variety": "Hybrid",
+    "state": "Karnataka",
+    "district": "Kolar",
+    "market": "Kolar",
+    "date": "2026-10-10",
+    "min_price": 18.0,
+    "modal_price": 23.0,
+    "max_price": 26.0,
+    "source_provider": "farmprofit-local-fallback"
+  },
+  {
+    "commodity": "Maize",
+    "variety": "Yellow",
+    "state": "Karnataka",
+    "district": "Hassan",
+    "market": "Hassan",
+    "date": "2026-10-10",
+    "min_price": 19.0,
+    "modal_price": 21.0,
+    "max_price": 22.5,
+    "source_provider": "farmprofit-local-fallback"
+  },
+  {
+    "commodity": "Onion",
+    "variety": "Red",
+    "state": "Karnataka",
+    "district": "Bengaluru",
+    "market": "Bengaluru APMC",
+    "date": "2026-10-10",
+    "min_price": 30.0,
+    "modal_price": 35.0,
+    "max_price": 40.0,
+    "source_provider": "farmprofit-local-fallback"
+  },
+  {
+    "commodity": "Potato",
+    "variety": "Jyoti",
+    "state": "Karnataka",
+    "district": "Hassan",
+    "market": "Hassan APMC",
+    "date": "2026-10-10",
+    "min_price": 22.0,
+    "modal_price": 26.0,
+    "max_price": 29.0,
+    "source_provider": "farmprofit-local-fallback"
+  }
+]

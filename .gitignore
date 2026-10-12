@@ -46,3 +46,6 @@ data/*
 backend/data/*
 !backend/data/.gitkeep
 !backend/data/__init__.py
+!backend/data/karnataka_market_catalogue.json
+!backend/data/fallback_market_prices.json
+!backend/data/verified_locations.json

@@ -1,0 +1,28 @@
+{
+  "locations": [
+    {
+      "name": "Mandya",
+      "state": "Karnataka",
+      "district": "Mandya",
+      "latitude": 12.5226,
+      "longitude": 76.8976,
+      "source": "OpenStreetMap city-centre coordinate, curated for prototype routing"
+    },
+    {
+      "name": "Mysore",
+      "state": "Karnataka",
+      "district": "Mysuru",
+      "latitude": 12.2958,
+      "longitude": 76.6394,
+      "source": "OpenStreetMap city-centre coordinate, curated for prototype routing"
+    },
+    {
+      "name": "Mysuru",
+      "state": "Karnataka",
+      "district": "Mysuru",
+      "latitude": 12.2958,
+      "longitude": 76.6394,
+      "source": "OpenStreetMap city-centre coordinate, curated for prototype routing"
+    }
+  ]
+}

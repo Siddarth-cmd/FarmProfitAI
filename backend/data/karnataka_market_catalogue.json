@@ -1,0 +1,1004 @@
+[
+  {
+    "id": 108,
+    "name": "APMC Hubballi",
+    "district": "Dharwad",
+    "state": "Karnataka"
+  },
+  {
+    "id": 723,
+    "name": "APMC Kundagol",
+    "district": "Dharwad",
+    "state": "Karnataka"
+  },
+  {
+    "id": 3274,
+    "name": "APMC THIRTHAHALLI",
+    "district": "Shivamogga",
+    "state": "Karnataka"
+  },
+  {
+    "id": 3280,
+    "name": "Afzalpur APMC",
+    "district": "Kalaburagi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 3402,
+    "name": "Alanda APMC",
+    "district": "Kalaburagi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 505,
+    "name": "Annigeri APMC",
+    "district": "Dharwad",
+    "state": "Karnataka"
+  },
+  {
+    "id": 3403,
+    "name": "Arakalgud APMC",
+    "district": "Hassan",
+    "state": "Karnataka"
+  },
+  {
+    "id": 734,
+    "name": "Arasikere APMC",
+    "district": "Hassan",
+    "state": "Karnataka"
+  },
+  {
+    "id": 504,
+    "name": "Athani APMC",
+    "district": "Belagavi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 705,
+    "name": "Aurad APMC",
+    "district": "Bidar",
+    "state": "Karnataka"
+  },
+  {
+    "id": 686,
+    "name": "Badami APMC",
+    "district": "Bagalkot",
+    "state": "Karnataka"
+  },
+  {
+    "id": 685,
+    "name": "Bagalkot APMC",
+    "district": "Bagalkot",
+    "state": "Karnataka"
+  },
+  {
+    "id": 3044,
+    "name": "Bagepalli APMC",
+    "district": "Chikkaballapur",
+    "state": "Karnataka"
+  },
+  {
+    "id": 692,
+    "name": "Bailahongal APMC",
+    "district": "Belagavi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 103,
+    "name": "Ballari APMC",
+    "district": "Bellary",
+    "state": "Karnataka"
+  },
+  {
+    "id": 744,
+    "name": "Bangarpet APMC",
+    "district": "Kolar",
+    "state": "Karnataka"
+  },
+  {
+    "id": 720,
+    "name": "Bantwala APMC",
+    "district": "Dakshina Kannada",
+    "state": "Karnataka"
+  },
+  {
+    "id": 512,
+    "name": "Basava Kalayana APMC",
+    "district": "Bidar",
+    "state": "Karnataka"
+  },
+  {
+    "id": 101,
+    "name": "Belgaum APMC",
+    "district": "Belagavi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 719,
+    "name": "Belthangdi APMC",
+    "district": "Dakshina Kannada",
+    "state": "Karnataka"
+  },
+  {
+    "id": 737,
+    "name": "Belur APMC",
+    "district": "Hassan",
+    "state": "Karnataka"
+  },
+  {
+    "id": 99,
+    "name": "Bengaluru APMC",
+    "district": "Bengaluru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 755,
+    "name": "Bhadravathi APMC",
+    "district": "Shivamogga",
+    "state": "Karnataka"
+  },
+  {
+    "id": 704,
+    "name": "Bhalki APMC",
+    "district": "Bidar",
+    "state": "Karnataka"
+  },
+  {
+    "id": 104,
+    "name": "Bidar APMC",
+    "district": "Bidar",
+    "state": "Karnataka"
+  },
+  {
+    "id": 3279,
+    "name": "Bilagi APMC",
+    "district": "Bagalkot",
+    "state": "Karnataka"
+  },
+  {
+    "id": 100,
+    "name": "Binny Mill (FF&V) Bengaluru APMC",
+    "district": "Bengaluru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 349,
+    "name": "Byadagi APMC",
+    "district": "Haveri",
+    "state": "Karnataka"
+  },
+  {
+    "id": 714,
+    "name": "Challakere APMC",
+    "district": "Chitradurga",
+    "state": "Karnataka"
+  },
+  {
+    "id": 707,
+    "name": "Chamarajanagar APMC",
+    "district": "Chamarajanagar",
+    "state": "Karnataka"
+  },
+  {
+    "id": 721,
+    "name": "Channagiri APMC",
+    "district": "Davangere",
+    "state": "Karnataka"
+  },
+  {
+    "id": 690,
+    "name": "Channapatna APMC",
+    "district": "Bengaluru South",
+    "state": "Karnataka"
+  },
+  {
+    "id": 501,
+    "name": "Channarayapatna APMC",
+    "district": "Hassan",
+    "state": "Karnataka"
+  },
+  {
+    "id": 742,
+    "name": "Chickkaballapura APMC",
+    "district": "Chikkaballapur",
+    "state": "Karnataka"
+  },
+  {
+    "id": 709,
+    "name": "Chikkamagaluru APMC",
+    "district": "Chikkamagaluru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 733,
+    "name": "Chincholi APMC",
+    "district": "Kalaburagi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 743,
+    "name": "Chintamani APMC",
+    "district": "Chikkaballapur",
+    "state": "Karnataka"
+  },
+  {
+    "id": 713,
+    "name": "Chitradurga APMC",
+    "district": "Chitradurga",
+    "state": "Karnataka"
+  },
+  {
+    "id": 511,
+    "name": "Chittapur APMC",
+    "district": "Kalaburagi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 106,
+    "name": "Davangere APMC",
+    "district": "Davangere",
+    "state": "Karnataka"
+  },
+  {
+    "id": 3362,
+    "name": "Devadurga APMC",
+    "district": "Raichur",
+    "state": "Karnataka"
+  },
+  {
+    "id": 107,
+    "name": "Dharwar APMC",
+    "district": "Dharwad",
+    "state": "Karnataka"
+  },
+  {
+    "id": 489,
+    "name": "Doddaballapur APMC",
+    "district": "Bengaluru Rural",
+    "state": "Karnataka"
+  },
+  {
+    "id": 725,
+    "name": "Gadag APMC",
+    "district": "Gadag",
+    "state": "Karnataka"
+  },
+  {
+    "id": 111,
+    "name": "Gangavathi APMC",
+    "district": "Koppal",
+    "state": "Karnataka"
+  },
+  {
+    "id": 492,
+    "name": "Gauribidanur APMC",
+    "district": "Chikkaballapur",
+    "state": "Karnataka"
+  },
+  {
+    "id": 693,
+    "name": "Gokak APMC",
+    "district": "Belagavi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 741,
+    "name": "Gonikappal APMC",
+    "district": "Kodagu",
+    "state": "Karnataka"
+  },
+  {
+    "id": 757,
+    "name": "Gubbi APMC",
+    "district": "Tumakuru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 497,
+    "name": "Gundlupet APMC",
+    "district": "Chamarajanagar",
+    "state": "Karnataka"
+  },
+  {
+    "id": 513,
+    "name": "H.B. Halli APMC",
+    "district": "Vijayanagara",
+    "state": "Karnataka"
+  },
+  {
+    "id": 769,
+    "name": "Haliyala APMC",
+    "district": "Uttara Kannada",
+    "state": "Karnataka"
+  },
+  {
+    "id": 510,
+    "name": "Hanagal APMC",
+    "district": "Haveri",
+    "state": "Karnataka"
+  },
+  {
+    "id": 4714,
+    "name": "Hanuru APMC",
+    "district": "Chamarajanagar",
+    "state": "Karnataka"
+  },
+  {
+    "id": 484,
+    "name": "HarappanaHalli APMC",
+    "district": "Davangere",
+    "state": "Karnataka"
+  },
+  {
+    "id": 348,
+    "name": "Harihara APMC",
+    "district": "Davangere",
+    "state": "Karnataka"
+  },
+  {
+    "id": 735,
+    "name": "Hassan APMC",
+    "district": "Hassan",
+    "state": "Karnataka"
+  },
+  {
+    "id": 109,
+    "name": "Haveri APMC",
+    "district": "Haveri",
+    "state": "Karnataka"
+  },
+  {
+    "id": 738,
+    "name": "Hirekerur APMC",
+    "district": "Haveri",
+    "state": "Karnataka"
+  },
+  {
+    "id": 715,
+    "name": "Hiriyur APMC",
+    "district": "Chitradurga",
+    "state": "Karnataka"
+  },
+  {
+    "id": 3152,
+    "name": "Holalkere APMC",
+    "district": "Chitradurga",
+    "state": "Karnataka"
+  },
+  {
+    "id": 736,
+    "name": "Holenarsipura APMC",
+    "district": "Hassan",
+    "state": "Karnataka"
+  },
+  {
+    "id": 485,
+    "name": "Honnali APMC",
+    "district": "Davangere",
+    "state": "Karnataka"
+  },
+  {
+    "id": 765,
+    "name": "Honnavar APMC",
+    "district": "Uttara Kannada",
+    "state": "Karnataka"
+  },
+  {
+    "id": 702,
+    "name": "Hoovinahadagali APMC",
+    "district": "Vijayanagara",
+    "state": "Karnataka"
+  },
+  {
+    "id": 493,
+    "name": "Hosadurga APMC",
+    "district": "Chitradurga",
+    "state": "Karnataka"
+  },
+  {
+    "id": 3275,
+    "name": "Hosanagara APMC",
+    "district": "Shivamogga",
+    "state": "Karnataka"
+  },
+  {
+    "id": 3151,
+    "name": "Hoskote APMC",
+    "district": "Bengaluru Rural",
+    "state": "Karnataka"
+  },
+  {
+    "id": 701,
+    "name": "Hospet APMC",
+    "district": "Vijayanagara",
+    "state": "Karnataka"
+  },
+  {
+    "id": 758,
+    "name": "Huliyar APMC",
+    "district": "Tumakuru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 703,
+    "name": "Humanabad APMC",
+    "district": "Bidar",
+    "state": "Karnataka"
+  },
+  {
+    "id": 687,
+    "name": "Hungund APMC",
+    "district": "Bagalkot",
+    "state": "Karnataka"
+  },
+  {
+    "id": 494,
+    "name": "Hunsur APMC",
+    "district": "Mysuru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 3277,
+    "name": "Indi APMC",
+    "district": "Vijayapura",
+    "state": "Karnataka"
+  },
+  {
+    "id": 722,
+    "name": "Jagalur APMC",
+    "district": "Davangere",
+    "state": "Karnataka"
+  },
+  {
+    "id": 688,
+    "name": "Jamakhandi APMC",
+    "district": "Bagalkot",
+    "state": "Karnataka"
+  },
+  {
+    "id": 3281,
+    "name": "Jevargi APMC",
+    "district": "Kalaburagi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 499,
+    "name": "K.R. Pet APMC",
+    "district": "Mandya",
+    "state": "Karnataka"
+  },
+  {
+    "id": 114,
+    "name": "K.R.Nagar APMC",
+    "district": "Mysuru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 708,
+    "name": "Kadur APMC",
+    "district": "Chikkamagaluru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 728,
+    "name": "Kalaburagi APMC",
+    "district": "Kalaburagi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 507,
+    "name": "Kalaghatagi APMC",
+    "district": "Dharwad",
+    "state": "Karnataka"
+  },
+  {
+    "id": 3282,
+    "name": "Kampli APMC",
+    "district": "Bellary",
+    "state": "Karnataka"
+  },
+  {
+    "id": 4723,
+    "name": "Kanakagiri APMC",
+    "district": "Koppal",
+    "state": "Karnataka"
+  },
+  {
+    "id": 691,
+    "name": "Kanakapura APMC",
+    "district": "Bengaluru South",
+    "state": "Karnataka"
+  },
+  {
+    "id": 4669,
+    "name": "Karatagi APMC",
+    "district": "Koppal",
+    "state": "Karnataka"
+  },
+  {
+    "id": 495,
+    "name": "Karkala APMC",
+    "district": "Udupi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 763,
+    "name": "Karwar APMC",
+    "district": "Uttara Kannada",
+    "state": "Karnataka"
+  },
+  {
+    "id": 112,
+    "name": "Kolar APMC",
+    "district": "Kolar",
+    "state": "Karnataka"
+  },
+  {
+    "id": 498,
+    "name": "Kollegal APMC",
+    "district": "Chamarajanagar",
+    "state": "Karnataka"
+  },
+  {
+    "id": 711,
+    "name": "Koppa APMC",
+    "district": "Chikkamagaluru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 113,
+    "name": "Koppal APMC",
+    "district": "Koppal",
+    "state": "Karnataka"
+  },
+  {
+    "id": 700,
+    "name": "Kottur APMC",
+    "district": "Vijayanagara",
+    "state": "Karnataka"
+  },
+  {
+    "id": 694,
+    "name": "Kudchi APMC",
+    "district": "Belagavi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 4733,
+    "name": "Kudligi APMC",
+    "district": "Vijayanagara",
+    "state": "Karnataka"
+  },
+  {
+    "id": 764,
+    "name": "Kumta APMC",
+    "district": "Uttara Kannada",
+    "state": "Karnataka"
+  },
+  {
+    "id": 810,
+    "name": "Kundapura APMC",
+    "district": "Udupi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 759,
+    "name": "Kunigal APMC",
+    "district": "Tumakuru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 747,
+    "name": "Kustagi APMC",
+    "district": "Koppal",
+    "state": "Karnataka"
+  },
+  {
+    "id": 724,
+    "name": "Laxmeshwar APMC",
+    "district": "Gadag",
+    "state": "Karnataka"
+  },
+  {
+    "id": 752,
+    "name": "Lingasugur APMC",
+    "district": "Raichur",
+    "state": "Karnataka"
+  },
+  {
+    "id": 749,
+    "name": "Maddur APMC",
+    "district": "Mandya",
+    "state": "Karnataka"
+  },
+  {
+    "id": 760,
+    "name": "Madhugiri APMC",
+    "district": "Tumakuru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 739,
+    "name": "Madikeri APMC",
+    "district": "Kodagu",
+    "state": "Karnataka"
+  },
+  {
+    "id": 689,
+    "name": "Mahalingapur APMC",
+    "district": "Bagalkot",
+    "state": "Karnataka"
+  },
+  {
+    "id": 3758,
+    "name": "Malavalli APMC",
+    "district": "Mandya",
+    "state": "Karnataka"
+  },
+  {
+    "id": 490,
+    "name": "Malur APMC",
+    "district": "Kolar",
+    "state": "Karnataka"
+  },
+  {
+    "id": 748,
+    "name": "Mandya APMC",
+    "district": "Mandya",
+    "state": "Karnataka"
+  },
+  {
+    "id": 716,
+    "name": "Mangaluru APMC",
+    "district": "Dakshina Kannada",
+    "state": "Karnataka"
+  },
+  {
+    "id": 118,
+    "name": "Manvi APMC",
+    "district": "Raichur",
+    "state": "Karnataka"
+  },
+  {
+    "id": 4743,
+    "name": "Mudhol APMC",
+    "district": "Bagalkot",
+    "state": "Karnataka"
+  },
+  {
+    "id": 710,
+    "name": "Mudigere APMC",
+    "district": "Chikkamagaluru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 1602,
+    "name": "Mulbagal APMC",
+    "district": "Kolar",
+    "state": "Karnataka"
+  },
+  {
+    "id": 727,
+    "name": "Mundaragi APMC",
+    "district": "Gadag",
+    "state": "Karnataka"
+  },
+  {
+    "id": 770,
+    "name": "Mundgod APMC",
+    "district": "Uttara Kannada",
+    "state": "Karnataka"
+  },
+  {
+    "id": 115,
+    "name": "Mysuru APMC",
+    "district": "Mysuru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 500,
+    "name": "Nagamangala APMC",
+    "district": "Mandya",
+    "state": "Karnataka"
+  },
+  {
+    "id": 695,
+    "name": "Nandagada APMC",
+    "district": "Belagavi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 750,
+    "name": "Nanjangud APMC",
+    "district": "Mysuru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 726,
+    "name": "Nargunda APMC",
+    "district": "Gadag",
+    "state": "Karnataka"
+  },
+  {
+    "id": 696,
+    "name": "Nippani APMC",
+    "district": "Belagavi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 1603,
+    "name": "Pandavapura APMC",
+    "district": "Mandya",
+    "state": "Karnataka"
+  },
+  {
+    "id": 487,
+    "name": "Pavagada APMC",
+    "district": "Tumakuru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 119,
+    "name": "Periyapatna APMC",
+    "district": "Mysuru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 717,
+    "name": "Puttur APMC",
+    "district": "Dakshina Kannada",
+    "state": "Karnataka"
+  },
+  {
+    "id": 116,
+    "name": "Raichur APMC",
+    "district": "Raichur",
+    "state": "Karnataka"
+  },
+  {
+    "id": 745,
+    "name": "Ramanagara APMC",
+    "district": "Bengaluru South",
+    "state": "Karnataka"
+  },
+  {
+    "id": 697,
+    "name": "Ramdurga APMC",
+    "district": "Belagavi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 3756,
+    "name": "Rampura APMC",
+    "district": "Chitradurga",
+    "state": "Karnataka"
+  },
+  {
+    "id": 110,
+    "name": "Ranebennur APMC",
+    "district": "Haveri",
+    "state": "Karnataka"
+  },
+  {
+    "id": 506,
+    "name": "Rona APMC",
+    "district": "Gadag",
+    "state": "Karnataka"
+  },
+  {
+    "id": 102,
+    "name": "SIRGUPPA APMC",
+    "district": "Bellary",
+    "state": "Karnataka"
+  },
+  {
+    "id": 754,
+    "name": "Sagar APMC",
+    "district": "Shivamogga",
+    "state": "Karnataka"
+  },
+  {
+    "id": 502,
+    "name": "Sakaleshpura APMC",
+    "district": "Hassan",
+    "state": "Karnataka"
+  },
+  {
+    "id": 3759,
+    "name": "Sandur APMC",
+    "district": "Vijayanagara",
+    "state": "Karnataka"
+  },
+  {
+    "id": 699,
+    "name": "Sankeshwar APMC",
+    "district": "Belagavi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 751,
+    "name": "Santhesargur APMC",
+    "district": "Mysuru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 508,
+    "name": "Savanur APMC",
+    "district": "Haveri",
+    "state": "Karnataka"
+  },
+  {
+    "id": 729,
+    "name": "Shahapur APMC",
+    "district": "Yadgir",
+    "state": "Karnataka"
+  },
+  {
+    "id": 1604,
+    "name": "Shiggoan APMC",
+    "district": "Haveri",
+    "state": "Karnataka"
+  },
+  {
+    "id": 486,
+    "name": "Shikaripura APMC",
+    "district": "Shivamogga",
+    "state": "Karnataka"
+  },
+  {
+    "id": 753,
+    "name": "Shimoga APMC",
+    "district": "Shivamogga",
+    "state": "Karnataka"
+  },
+  {
+    "id": 730,
+    "name": "Shorapur APMC",
+    "district": "Yadgir",
+    "state": "Karnataka"
+  },
+  {
+    "id": 766,
+    "name": "Siddapur APMC",
+    "district": "Uttara Kannada",
+    "state": "Karnataka"
+  },
+  {
+    "id": 706,
+    "name": "Sindagi APMC",
+    "district": "Vijayapura",
+    "state": "Karnataka"
+  },
+  {
+    "id": 117,
+    "name": "Sindhanur APMC",
+    "district": "Raichur",
+    "state": "Karnataka"
+  },
+  {
+    "id": 761,
+    "name": "Sira APMC",
+    "district": "Tumakuru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 768,
+    "name": "Sirsi APMC",
+    "district": "Uttara Kannada",
+    "state": "Karnataka"
+  },
+  {
+    "id": 740,
+    "name": "Somvarpet APMC",
+    "district": "Kodagu",
+    "state": "Karnataka"
+  },
+  {
+    "id": 3146,
+    "name": "Sorabha APMC",
+    "district": "Shivamogga",
+    "state": "Karnataka"
+  },
+  {
+    "id": 698,
+    "name": "Soundati APMC",
+    "district": "Belagavi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 491,
+    "name": "Srinivasapur APMC",
+    "district": "Kolar",
+    "state": "Karnataka"
+  },
+  {
+    "id": 2030,
+    "name": "Srirangapattana APMC",
+    "district": "Mandya",
+    "state": "Karnataka"
+  },
+  {
+    "id": 718,
+    "name": "Sulya APMC",
+    "district": "Dakshina Kannada",
+    "state": "Karnataka"
+  },
+  {
+    "id": 496,
+    "name": "T. Narasipura APMC",
+    "district": "Mysuru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 509,
+    "name": "Talikot APMC",
+    "district": "Vijayapura",
+    "state": "Karnataka"
+  },
+  {
+    "id": 503,
+    "name": "Tarikere APMC",
+    "district": "Chikkamagaluru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 762,
+    "name": "Tiptur APMC",
+    "district": "Tumakuru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 756,
+    "name": "Tumakuru APMC",
+    "district": "Tumakuru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 488,
+    "name": "Turvekere APMC",
+    "district": "Tumakuru",
+    "state": "Karnataka"
+  },
+  {
+    "id": 823,
+    "name": "Udupi APMC",
+    "district": "Udupi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 105,
+    "name": "Vijayapura APMC",
+    "district": "Vijayapura",
+    "state": "Karnataka"
+  },
+  {
+    "id": 732,
+    "name": "Yadgir APMC",
+    "district": "Yadgir",
+    "state": "Karnataka"
+  },
+  {
+    "id": 746,
+    "name": "Yalburga APMC",
+    "district": "Koppal",
+    "state": "Karnataka"
+  },
+  {
+    "id": 4796,
+    "name": "Yaragatti  APMC",
+    "district": "Belagavi",
+    "state": "Karnataka"
+  },
+  {
+    "id": 767,
+    "name": "Yellapur APMC",
+    "district": "Uttara Kannada",
+    "state": "Karnataka"
+  },
+  {
+    "id": 731,
+    "name": "sedam",
+    "district": "Kalaburagi",
+    "state": "Karnataka"
+  }
+]

@@ -5,6 +5,10 @@ import {
   AlertCircle,
   Layers,
   Database,
+  CheckCircle2,
+  Clock,
+  Archive,
+  AlertTriangle,
 } from 'lucide-react'
 import { fetchMarketFilters, fetchMarkets } from '../services/api'
 import { localizeBackendText, useLanguage } from '../localization'
@@ -20,16 +24,17 @@ export default function MarketExplorer() {
 
   const [loading, setLoading] = useState(false)
   const [marketsData, setMarketsData] = useState([])
-  const [source, setSource] = useState('data.gov.in')
+  const [source, setSource] = useState('agmarknet.gov.in')
   const [usingFallback, setUsingFallback] = useState(false)
   const [errorInfo, setErrorInfo] = useState(null)
+  const [errorKind, setErrorKind] = useState(null)
 
   const loadFilters = useCallback(async () => {
     setFiltersLoading(true)
     setFiltersError(null)
     const res = await fetchMarketFilters()
     setFiltersLoading(false)
-    if (res.available && res.states?.length > 0 && res.districts?.length > 0) {
+    if (res.available && res.states?.length > 0) {
       setFilterOptions({
         states: res.states || [],
         districts: res.districts || [],
@@ -48,50 +53,43 @@ export default function MarketExplorer() {
   const selectedState = filterOptions.states.find(
     (option) => option.name.toLocaleLowerCase() === state.trim().toLocaleLowerCase(),
   )
-  const selectedStateId = selectedState?.id ?? null
   const districtOptions = selectedState
     ? filterOptions.districts.filter((option) => option.state_id === selectedState.id)
     : []
-  const selectedDistrict = districtOptions.find(
-    (option) => option.name.toLocaleLowerCase() === district.trim().toLocaleLowerCase(),
-  )
-  const selectedDistrictId = selectedDistrict?.id ?? null
 
   const loadData = useCallback(async () => {
-    // District is optional – allow state-wide searches
-    if (selectedStateId === null) {
-      setMarketsData([])
-      setSource(null)
-      setUsingFallback(false)
-      setErrorInfo(t('marketExplorerRequiresLocation'))
-      return
-    }
+    if (filtersLoading) return
 
     setLoading(true)
     setErrorInfo(null)
+    setErrorKind(null)
 
     const res = await fetchMarkets({
       commodity,
       state,
-      district: district.trim() || undefined,  // omit district for state-wide search
-      limit: 50,
+      district: district.trim() || undefined, // omit district for state-wide Karnataka search
+      limit: 200,
     })
 
     setLoading(false)
 
     if (res.available) {
       setMarketsData(res.records || [])
-      setSource(res.source || 'data.gov.in')
+      setSource(res.source || 'agmarknet.gov.in')
       setUsingFallback(Boolean(res.using_fallback))
     } else {
       setMarketsData([])
+      setErrorKind(res.error?.kind || 'service')
       setErrorInfo(res.error?.message || t('upstreamUnavailable'))
     }
-  }, [commodity, selectedStateId, state, district, t])
+  }, [commodity, filtersLoading, state, district, t])
+
 
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    if (!filtersLoading && selectedState) {
+      loadData()
+    }
+  }, [filtersLoading, selectedState, loadData])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -108,6 +106,80 @@ export default function MarketExplorer() {
     setMarketsData([])
     setErrorInfo(null)
   }
+
+  const renderFreshnessBadge = (row) => {
+    const status = row.freshness_status || (row.is_stale ? 'stale' : 'within_acceptable_window')
+    if (status === 'fresh') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+          <CheckCircle2 className="w-3 h-3 text-emerald-700" />
+          <span>{t('freshBadge')}</span>
+        </span>
+      )
+    }
+    if (status === 'cached' || status === 'cached_acceptable') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-300">
+          <Archive className="w-3 h-3 text-blue-700" />
+          <span>{t('cachedBadge')}</span>
+        </span>
+      )
+    }
+    if (status === 'fallback' || status === 'fallback_demo') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-800 border border-orange-300">
+          <AlertTriangle className="w-3 h-3 text-orange-700" />
+          <span>{t('fallbackBadge')}</span>
+        </span>
+      )
+    }
+    if (status === 'stale' || row.is_stale) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300">
+          <Clock className="w-3 h-3 text-amber-700" />
+          <span>{t('staleBadge')}</span>
+        </span>
+      )
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-100 text-teal-800 border border-teal-300">
+        <CheckCircle2 className="w-3 h-3 text-teal-700" />
+        <span>{t('acceptableBadge')}</span>
+      </span>
+    )
+  }
+
+  const renderSourceBadge = (row) => {
+    const rawSource = (row.source_provider || source || '').toLowerCase()
+    if (rawSource.includes('fallback') || rawSource.includes('demo')) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200">
+          Local Fallback
+        </span>
+      )
+    }
+    if (rawSource.includes('cached') || rawSource.includes('observations.db')) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+          Verified Cache
+        </span>
+      )
+    }
+    if (rawSource.includes('data.gov.in')) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+          Data.gov.in
+        </span>
+      )
+    }
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
+        Agmarknet
+      </span>
+    )
+  }
+
+  const isCachedSource = Boolean(source && source.toLowerCase().includes('cached'))
 
   return (
     <section className="py-12 md:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 reveal-soft">
@@ -172,24 +244,22 @@ export default function MarketExplorer() {
 
         <div className="flex-1">
           <label htmlFor="market-district" className="text-xs font-bold uppercase tracking-wider text-[#173F2A] block mb-1.5">
-            {t('district')} <span className="text-[#6F8F72] font-normal normal-case tracking-normal">(optional – leave blank for all Karnataka)</span>
+            {t('location')} <span className="text-[#6F8F72] font-normal normal-case tracking-normal">({t('districtSelectPrompt')})</span>
           </label>
-          <input
+          <select
             id="market-district"
-            type="text"
-            list="market-district-options"
-            autoComplete="off"
             value={district}
             onChange={(e) => setDistrict(e.target.value)}
-            placeholder="All districts"
             disabled={!selectedState || districtOptions.length === 0}
             className="w-full px-3.5 py-2.5 rounded-xl bg-[#F7F3E8]/50 border border-[#E4E1D7] text-sm text-[#1E2921] focus:bg-[#FFFDF7] focus:border-[#173F2A] outline-hidden"
-          />
-          <datalist id="market-district-options">
+          >
+            <option value="">{t('allDistricts')}</option>
             {districtOptions.map((option) => (
-              <option key={option.id} value={option.name} />
+              <option key={option.id} value={option.name}>
+                {option.name}
+              </option>
             ))}
-          </datalist>
+          </select>
         </div>
 
         <div className="flex gap-2">
@@ -224,18 +294,28 @@ export default function MarketExplorer() {
         </div>
       )}
 
-      {/* Error state */}
+      {/* Error / Data Notice state */}
       {errorInfo && (
-        <div className="p-6 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 mb-8 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+        <div className={`p-6 rounded-2xl mb-8 flex items-start gap-3 ${
+          errorKind === 'data'
+            ? 'bg-blue-50/80 border border-blue-200 text-blue-900'
+            : 'bg-amber-50 border border-amber-200 text-amber-900'
+        }`}>
+          <AlertCircle className={`w-5 h-5 shrink-0 mt-0.5 ${
+            errorKind === 'data' ? 'text-blue-700' : 'text-amber-700'
+          }`} />
           <div>
-            <h4 className="font-bold text-sm">{t('marketDataNoticeTitle')}</h4>
-            <p className="text-sm mt-0.5 text-amber-800">
+            <h4 className="font-bold text-sm">
+              {errorKind === 'data' ? t('marketDataNoticeTitle') : t('marketDataNoticeTitle')}
+            </h4>
+            <p className={`text-sm mt-0.5 ${errorKind === 'data' ? 'text-blue-800' : 'text-amber-800'}`}>
               {localizeBackendText(language, errorInfo)}
             </p>
-            <p className="text-xs text-amber-700/80 mt-2">
-              {t('apiNotice')}
-            </p>
+            {errorKind !== 'data' && (
+              <p className="text-xs text-amber-700/80 mt-2">
+                {t('apiNotice')}
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -257,22 +337,43 @@ export default function MarketExplorer() {
           </p>
         </div>
       ) : marketsData.length > 0 ? (
-        <div className="premium-card rounded-3xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#E4E1D7] bg-[#F7F3E8]/50 flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#68736B]">
-              {t('showing', { count: marketsData.length, source })}
-              {usingFallback? ` — ${t('sourceFallback')}`: ' — Provider data'}
-            </span>
+        <div className="premium-card rounded-3xl overflow-hidden shadow-xs">
+          {/* Header Bar */}
+          <div className="px-6 py-4 border-b border-[#E4E1D7] bg-[#F7F3E8]/60 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#173F2A]">
+                {t('showing', { count: marketsData.length, source })}
+              </span>
+              {usingFallback ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-800 border border-orange-300">
+                  <AlertTriangle className="w-3 h-3 text-orange-700" />
+                  <span>{t('sourceFallbackBadge')}</span>
+                </span>
+              ) : isCachedSource ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300">
+                  <Archive className="w-3 h-3 text-blue-700" />
+                  <span>{t('sourceCachedBadge')}</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-700" />
+                  <span>{t('sourceLiveBadge')}</span>
+                </span>
+              )}
+            </div>
             <span className="text-xs text-[#68736B] font-mono">
               {t('normalizedUnit')}
             </span>
           </div>
+
           {usingFallback && (
-            <p className="px-6 py-3 text-xs text-amber-800 bg-amber-50 border-b border-amber-200">
-              {t('sourceFallbackWarning')} {t('staleDataWarning')}
+            <p className="px-6 py-3 text-xs text-orange-900 bg-orange-50 border-b border-orange-200 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-orange-700 shrink-0" />
+              <span>{t('sourceFallbackWarning')} {t('staleDataWarning')}</span>
             </p>
           )}
 
+          {/* Desktop Table View */}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-sm divide-y divide-[#E4E1D7]">
               <thead className="bg-[#F7F3E8] text-[#173F2A] text-xs uppercase tracking-wider font-bold">
@@ -281,6 +382,7 @@ export default function MarketExplorer() {
                   <th className="px-6 py-3.5">{t('location')}</th>
                   <th className="px-6 py-3.5">{t('commodityVariety')}</th>
                   <th className="px-6 py-3.5">{t('date')}</th>
+                  <th className="px-6 py-3.5">{t('dataSource')}</th>
                   <th className="px-6 py-3.5 text-right">{t('marketPrice')}</th>
                   <th className="px-6 py-3.5 text-right">{t('priceRange')}</th>
                 </tr>
@@ -288,7 +390,7 @@ export default function MarketExplorer() {
               <tbody className="divide-y divide-[#E4E1D7] bg-[#FFFDF7]">
                 {marketsData.map((row, idx) => (
                   <tr
-                    key={idx}
+                    key={`${row.market}-${row.date}-${idx}`}
                     className="hover:bg-[#F7F3E8]/60 transition-colors group"
                   >
                     <td className="px-6 py-4 font-bold text-[#173F2A]">
@@ -307,21 +409,37 @@ export default function MarketExplorer() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-[#68736B] text-xs font-mono">
-                      {row.date}
-                      {row.is_stale && (
-                        <span className="block text-amber-700 font-sans mt-1">{t('staleObservation')}</span>
-                      )}
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className="text-xs font-mono text-[#68736B]">{row.date}</span>
+                        {renderFreshnessBadge(row)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {renderSourceBadge(row)}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <span className="text-base font-extrabold text-[#173F2A]">
                         ₹{Number(row.observation_price_per_kg ?? row.modal_price).toFixed(2)}
                       </span>
+                      <span className="text-xs text-[#68736B] block">/ kg</span>
+                      {row.source_price_value != null && row.source_unit && (
+                        <span className="text-[11px] font-mono text-[#68736B] block mt-0.5">
+                          ₹{Number(row.source_price_value).toLocaleString()} / {row.source_unit.replace(/^Rs\.\/?/i, '')}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-right text-xs text-[#68736B]">
-                      {row.min_price == null || row.max_price == null
-                        ? t('rangeUnavailable')
-                        : `₹${Number(row.min_price).toFixed(2)} – ₹${Number(row.max_price).toFixed(2)}`}
+                      {row.min_price == null || row.max_price == null ? (
+                        <span className="italic">{t('rangeUnavailable')}</span>
+                      ) : (
+                        <div>
+                          <span className="font-semibold text-[#1E2921]">
+                            ₹{Number(row.min_price).toFixed(2)} – ₹{Number(row.max_price).toFixed(2)}
+                          </span>
+                          <span className="block text-[11px]">/ kg</span>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -329,6 +447,7 @@ export default function MarketExplorer() {
             </table>
           </div>
 
+          {/* Mobile Card View */}
           <div className="md:hidden divide-y divide-[#E4E1D7]">
             {marketsData.map((row, idx) => (
               <article key={`${row.market}-${idx}`} className="p-5 bg-[#FFFDF7]">
@@ -344,26 +463,37 @@ export default function MarketExplorer() {
                       ₹{Number(row.observation_price_per_kg ?? row.modal_price).toFixed(2)}
                     </div>
                     <div className="text-[11px] text-[#68736B]">{t('perKg')}</div>
+                    {row.source_price_value != null && row.source_unit && (
+                      <div className="text-[10px] font-mono text-[#68736B]">
+                        ₹{Number(row.source_price_value).toLocaleString()} / {row.source_unit.replace(/^Rs\.\/?/i, '')}
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5">
+                    {renderSourceBadge(row)}
+                    {renderFreshnessBadge(row)}
+                  </div>
+                  <span className="text-xs font-mono text-[#68736B]">{row.date}</span>
+                </div>
+
                 <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
                   <div className="rounded-xl bg-[#F7F3E8] border border-[#E4E1D7] p-3">
-                    <span className="block text-[#68736B]">{t('crop')}</span>
+                    <span className="block text-[#68736B]">{t('commodityVariety')}</span>
                     <strong className="text-[#1E2921]">{row.commodity}</strong>
+                    {row.variety && <span className="block text-[#68736B] text-[11px]">{row.variety}</span>}
                   </div>
                   <div className="rounded-xl bg-[#F7F3E8] border border-[#E4E1D7] p-3">
                     <span className="block text-[#68736B]">{t('priceRange')}</span>
                     <strong className="text-[#1E2921]">
                       {row.min_price == null || row.max_price == null
                         ? t('rangeUnavailable')
-                        : `₹${Number(row.min_price).toFixed(2)} – ₹${Number(row.max_price).toFixed(2)}`}
+                        : `₹${Number(row.min_price).toFixed(2)} – ₹${Number(row.max_price).toFixed(2)} / kg`}
                     </strong>
                   </div>
                 </div>
-                <p className="mt-3 text-xs font-mono text-[#68736B]">
-                  {row.date}
-                  {row.is_stale && <span className="block font-sans text-amber-700 mt-1">{t('staleObservation')}</span>}
-                </p>
               </article>
             ))}
           </div>

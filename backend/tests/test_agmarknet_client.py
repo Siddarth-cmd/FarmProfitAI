@@ -15,11 +15,9 @@ def _reset_filter_cache():
     filter HTTP call, shifting the index of every recorded request by -1 and
     causing assertions like ``requests[1]`` to raise ``IndexError``.
     """
-    agmarknet_client._filter_cache["payload"] = None
-    agmarknet_client._filter_cache["expires_at"] = 0.0
+    agmarknet_client.clear_caches()
     yield
-    agmarknet_client._filter_cache["payload"] = None
-    agmarknet_client._filter_cache["expires_at"] = 0.0
+    agmarknet_client.clear_caches()
 
 
 def _filters() -> dict:
@@ -595,3 +593,55 @@ def test_http_429_is_classified_as_service_error_in_try_fetch(monkeypatch):
     assert result.available is False
     assert result.error_kind == "service"
     assert "429" in (result.error_message or "")
+
+
+def test_price_cache_avoids_repeated_requests(monkeypatch):
+    """Calling fetch twice for the same market and commodity within TTL must reuse cache."""
+    call_counts = {"count": 0}
+
+    def fake_request(path: str, *, params=None):
+        if path.endswith("/filters"):
+            return _filters()
+        call_counts["count"] += 1
+        return _report()
+
+    monkeypatch.setattr(agmarknet_client, "_request_json", fake_request)
+
+    res1 = agmarknet_client.fetch_market_prices(
+        limit=5, commodity="Tomato", state="Karnataka", district="Mysuru"
+    )
+    assert len(res1.records) == 1
+    assert call_counts["count"] == 1
+
+    # Second call should use cache and not increment request count
+    res2 = agmarknet_client.fetch_market_prices(
+        limit=5, commodity="Tomato", state="Karnataka", district="Mysuru"
+    )
+    assert len(res2.records) == 1
+    assert call_counts["count"] == 1
+
+
+def test_partial_results_preserved_when_later_market_fails(monkeypatch):
+    """If one market succeeds and a subsequent market encounters a rate limit, the successful records are preserved."""
+    request_index = 0
+
+    def fake_request(path: str, *, params=None):
+        nonlocal request_index
+        if path.endswith("/filters"):
+            return _filters()
+        request_index += 1
+        if request_index == 1:
+            return _report()
+        raise agmarknet_client.AgmarknetRateLimitError("Rate limit reached")
+
+    monkeypatch.setattr(agmarknet_client, "_request_json", fake_request)
+
+    # State-wide query checking multiple markets
+    result = agmarknet_client.fetch_market_prices(
+        limit=10, commodity="Tomato", state="Karnataka"
+    )
+
+    assert result.available is True
+    assert len(result.records) >= 1
+    assert result.records[0].market == "Mysuru APMC"
+

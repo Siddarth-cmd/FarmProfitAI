@@ -4,6 +4,7 @@ import {
   TrendingUp,
   CheckCircle,
   RotateCcw,
+  AlertCircle,
 } from 'lucide-react'
 import { localizeBackendText, useLanguage } from '../localization'
 import AITimingForecast from './AITimingForecast'
@@ -148,7 +149,7 @@ export default function RecommendationResult({ data, meta, onReset }) {
             </div>
 
             {/* Summary metrics bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 text-xs sm:text-sm">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 pt-6 text-xs sm:text-sm">
               <div>
                 <span className="text-[#DCE8D5]/70 block">{usesObservation ? t('observedPrice') : t('marketPrice')}</span>
                 <span className="font-bold text-base text-[#FFFDF7] mt-0.5 block">
@@ -159,6 +160,17 @@ export default function RecommendationResult({ data, meta, onReset }) {
                 <span className="text-[#DCE8D5]/70 block">{t('grossRevenue')}</span>
                 <span className="font-bold text-base text-[#FFFDF7] mt-0.5 block">
                   ₹{formatINR(expected_gross_revenue)}
+                </span>
+              </div>
+              <div>
+                <span className="text-[#DCE8D5]/70 block">{t('roadDistance')}</span>
+                <span className="font-bold text-base text-[#DCE8D5] mt-0.5 block">
+                  {bestMarket?.distance_km != null ? `${bestMarket.distance_km} km` : t('distanceUnavailable')}
+                </span>
+                <span className="text-[10px] text-[#DCE8D5]/60 block mt-0.5">
+                  {bestMarket?.rate_applied != null
+                    ? `₹${bestMarket.rate_applied} ${bestMarket.rate_unit || ''} ${bestMarket.rate_is_estimate ? `(${t('defaultEstimate')})` : `(${t('customRate')})`}`
+                    : bestMarket?.transport_cost_basis === 'actual_quote' ? t('rateBasisQuote') : ''}
                 </span>
               </div>
               <div>
@@ -194,6 +206,92 @@ export default function RecommendationResult({ data, meta, onReset }) {
             </div>
           </div>
         )}
+
+        {/* Why This Market Recommendation Card */}
+        <div className="premium-card rounded-3xl p-6 sm:p-8 mb-10 border-2 border-[#173F2A]/25 shadow-md bg-[#FFFDF7]">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#173F2A] text-[#FFFDF7] text-xs font-bold uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-[#C9A227]" />
+              <span>{t('whyThisMarketTitle')}</span>
+            </div>
+            {advantage > 0 && runnerUpMarket && (
+              <span className="text-xs font-extrabold text-[#173F2A] bg-[#DCE8D5] px-3.5 py-1 rounded-full border border-[#173F2A]/20">
+                +₹{formatINR(advantage)} {t('moreThanNextRunnerUp')}
+              </span>
+            )}
+          </div>
+
+          <p className="text-base sm:text-lg font-bold text-[#173F2A] leading-relaxed mb-6">
+            {explanation || t('whyMarket', { market: recommended_market })}
+          </p>
+
+          {/* 4 Financial Columns */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="p-4 rounded-2xl bg-[#F7F3E8] border border-[#E4E1D7]">
+              <span className="text-xs font-bold text-[#68736B] block uppercase tracking-wide">
+                {t('grossRevenue')}
+              </span>
+              <div className="text-lg sm:text-2xl font-black text-[#173F2A] mt-1">
+                ₹{formatINR(expected_gross_revenue)}
+              </div>
+              <span className="text-[11px] text-[#68736B] font-medium">
+                ₹{formatPricePerKg(bestMarket?.price_per_kg)}/kg
+              </span>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#F7F3E8] border border-[#E4E1D7]">
+              <span className="text-xs font-bold text-[#68736B] block uppercase tracking-wide">
+                {t('transportation')}
+              </span>
+              <div className="text-lg sm:text-2xl font-black text-red-700 mt-1">
+                -₹{formatINR(transportation_cost)}
+              </div>
+              <span className="text-[11px] text-[#68736B] font-medium">
+                {bestMarket?.transport_cost_basis === 'actual_quote' ? t('actualQuoteUsedShort') : t('estimatedFreight')}
+              </span>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#F7F3E8] border border-[#E4E1D7]">
+              <span className="text-xs font-bold text-[#68736B] block uppercase tracking-wide">
+                {t('otherCosts') || 'Other Costs'}
+              </span>
+              <div className="text-lg sm:text-2xl font-black text-[#68736B] mt-1">
+                -₹{formatINR(other_costs)}
+              </div>
+              <span className="text-[11px] text-[#68736B] font-medium">
+                {t('mandiCosts')}
+              </span>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#173F2A] text-[#FFFDF7] border border-[#24543A]">
+              <span className="text-xs font-bold text-[#DCE8D5] block uppercase tracking-wide">
+                {t('expectedNet')}
+              </span>
+              <div className="text-lg sm:text-2xl font-black text-[#FFFDF7] mt-1">
+                ₹{formatINR(expected_net_return)}
+              </div>
+              <span className="text-[11px] text-[#C9A227] font-bold">
+                {t('actualProfit')}
+              </span>
+            </div>
+          </div>
+
+          {/* Direct Alternative Comparison */}
+          {runnerUpMarket && (
+            <div className="mt-5 p-4 rounded-2xl bg-[#F7F3E8]/80 border border-[#E4E1D7] flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
+              <div className="flex flex-wrap items-center gap-2 text-[#173F2A]">
+                <span className="font-extrabold">vs. #2 {runnerUpMarket.name}:</span>
+                <span className="text-[#68736B]">
+                  Net return ₹{formatINR(runnerUpMarket.net_return)} (Price: ₹{formatPricePerKg(runnerUpMarket.price_per_kg)}/kg, Freight: ₹{formatINR(runnerUpMarket.transportation_cost)})
+                </span>
+              </div>
+              <div className="inline-flex items-center gap-1 font-black text-emerald-800 bg-emerald-100/80 px-2.5 py-1 rounded-lg">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-700" />
+                <span>+₹{formatINR(advantage)} {t('profitAdvantage')}</span>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Feature 3: Multi-Commodity Crop-by-Crop Breakdown Table (if multi-crop present) */}
         {bestMarket?.crop_breakdowns?.length > 1 && (
@@ -518,7 +616,7 @@ export default function RecommendationResult({ data, meta, onReset }) {
               return (
                 <div
                   key={m.name}
-                    className={`rounded-2xl p-6 lift-card ${
+                  className={`rounded-2xl p-6 lift-card ${
                     isWinner
                       ? 'bg-[#DCE8D5]/60 border-2 border-[#173F2A] shadow-md scale-102'
                       : 'bg-[#FFFDF7] border border-[#E4E1D7] hover:border-[#6F8F72] shadow-xs'
@@ -529,20 +627,6 @@ export default function RecommendationResult({ data, meta, onReset }) {
                       <div className="text-xs font-bold text-[#68736B] uppercase tracking-wider">
                         {t('rank')} #{m.rank}
                       </div>
-                      {incomplete_markets.length > 0 && (
-                        <div className="mt-6 rounded-2xl bg-amber-50 border border-amber-200 p-4">
-                          <h4 className="text-sm font-bold text-amber-900">{t('incompleteMarkets')}</h4>
-                          <p className="text-xs text-amber-800 mt-1">{t('incompleteMarketsHelp')}</p>
-                          <div className="mt-3 space-y-2">
-                            {incomplete_markets.map((market) => (
-                              <div key={market.name} className="flex flex-wrap justify-between gap-2 text-xs text-amber-900">
-                                <span className="font-semibold">{market.name}</span>
-                                <span>{market.transport_error || t('distanceUnavailable')}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                       <h4 className="text-xl font-extrabold text-[#173F2A]">
                         {m.name}
                       </h4>
@@ -580,6 +664,28 @@ export default function RecommendationResult({ data, meta, onReset }) {
                         <span className="font-semibold text-[#1E2921]">₹{formatPricePerKg(m.price_per_kg)}/{t('unitKg')}</span>
                       </div>
                     </div>
+
+                    {/* Road Distance */}
+                    <div className="flex justify-between py-1 border-b border-[#E4E1D7]/60">
+                      <span className="text-[#68736B]">{t('roadDistance')}</span>
+                      <span className="font-semibold text-[#1E2921]">
+                        {m.distance_km != null ? `${m.distance_km} km` : t('distanceUnavailable')}
+                      </span>
+                    </div>
+
+                    {/* Rate Applied */}
+                    {m.rate_applied != null && (
+                      <div className="flex justify-between py-1 border-b border-[#E4E1D7]/60">
+                        <span className="text-[#68736B]">{t('rateApplied')}</span>
+                        <span className="font-semibold text-[#1E2921]">
+                          ₹{m.rate_applied} {m.rate_unit || ''}{' '}
+                          <span className="text-[10px] text-[#68736B] font-normal">
+                            {m.rate_is_estimate ? `(${t('defaultEstimate')})` : `(${t('customRate')})`}
+                          </span>
+                        </span>
+                      </div>
+                    )}
+
                     <div className="flex justify-between py-1 border-b border-[#E4E1D7]/60">
                       <span className="text-[#68736B]">{t('transportation')}</span>
                       <span className="font-semibold text-[#1E2921]">
@@ -591,6 +697,12 @@ export default function RecommendationResult({ data, meta, onReset }) {
                     {m.transport_cost_basis === 'actual_quote' && (
                       <div className="text-[11px] text-[#68736B]">{t('actualQuoteUsed')}</div>
                     )}
+                    {m.transport_error && (
+                      <div className="p-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800 font-medium">
+                        {m.transport_error}
+                      </div>
+                    )}
+
                     <div className="flex justify-between py-1 border-b border-[#E4E1D7]/60">
                       <span className="text-[#68736B]">{t('grossRevenue')}</span>
                       <span className="font-semibold text-[#1E2921]">
@@ -631,6 +743,21 @@ export default function RecommendationResult({ data, meta, onReset }) {
               )
             })}
           </div>
+
+          {incomplete_markets.length > 0 && (
+            <div className="mt-8 rounded-2xl bg-amber-50 border border-amber-200 p-6">
+              <h4 className="text-sm font-bold text-amber-900">{t('incompleteMarkets')}</h4>
+              <p className="text-xs text-amber-800 mt-1">{t('incompleteMarketsHelp')}</p>
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {incomplete_markets.map((market) => (
+                  <div key={market.name} className="p-3.5 rounded-xl bg-white/80 border border-amber-300 text-xs text-amber-900 flex flex-col justify-between">
+                    <span className="font-bold text-sm text-[#173F2A]">{market.name}</span>
+                    <span className="text-amber-800 mt-1">{market.transport_error || t('distanceUnavailable')}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}

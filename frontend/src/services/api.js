@@ -14,7 +14,7 @@ if (typeof window !== 'undefined') {
   console.log(`[FarmProfit API] Base URL: "${API_BASE || '(relative / Vite proxy -> http://127.0.0.1:8000)'}"`)
 }
 
-const DEFAULT_TIMEOUT_MS = 15000
+const DEFAULT_TIMEOUT_MS = 30000
 
 /**
  * Robust fetch wrapper with timeout via AbortController.
@@ -323,5 +323,25 @@ export async function fetchMarketVolatility(commodity, market, district = null) 
       available: false,
       error: { message: 'Network error fetching volatility.' },
     }
+  }
+}
+
+/**
+ * Fetch APMC markets that have real price observations for a given commodity.
+ * Used to populate the forecast market selector with only markets that will work.
+ * @param {string} commodity - Commodity name (e.g. "Tomato")
+ * @returns {Promise<Object>} { available, markets: [{market, district, state, observation_count, latest_date}], total }
+ */
+export async function fetchAvailableMarkets(commodity) {
+  const params = new URLSearchParams({ commodity: commodity.trim() })
+  const url = `${API_BASE}/forecast/available-markets?${params.toString()}`
+  try {
+    const response = await apiFetch(url, { method: 'GET', headers: { Accept: 'application/json' } }, 10000)
+    if (!response.ok) {
+      return { available: false, markets: [], total: 0 }
+    }
+    return await response.json()
+  } catch {
+    return { available: false, markets: [], total: 0 }
   }
 }

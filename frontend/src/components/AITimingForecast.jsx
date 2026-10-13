@@ -76,7 +76,7 @@ export default function AITimingForecast({
 
   useEffect(() => {
     loadAIData()
-  }, [commodity, market, quantityKg, transportCost])
+  }, [commodity, market, district, quantityKg, transportCost])
 
   if (loading) {
     return (
@@ -101,7 +101,31 @@ export default function AITimingForecast({
   }
 
   if (error && !timingData) {
-    return null // Graceful degradation if external API stream has no records for this market
+    return (
+      <div className="bg-[#FFFDF7] rounded-3xl p-6 sm:p-8 border border-amber-200 shadow-sm my-8">
+        <div className="flex items-start gap-4">
+          <div className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0">
+            <ShieldAlert className="w-5 h-5 text-amber-700" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-extrabold text-lg text-amber-900 tracking-tight">Forecast Unavailable</h3>
+            <p className="text-sm text-amber-800 mt-1">{error}</p>
+            <p className="text-xs text-amber-700 mt-3 leading-relaxed">
+              The AI Forecast requires real APMC price observations for <strong>{market}</strong>.
+              These are fetched from Agmarknet when you search in the Market Explorer.
+              If you just searched there, try refreshing below — data may now be cached.
+            </p>
+            <button
+              onClick={loadAIData}
+              className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#173F2A] text-[#FFFDF7] text-sm font-bold hover:bg-[#24543A] transition-colors cursor-pointer"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Retry with Live Data
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   const isHold = timingData?.recommendation === 'HOLD'

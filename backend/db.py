@@ -119,6 +119,7 @@ def _row_to_market_price(row: sqlite3.Row) -> MarketPrice:
         source_provider=row["source_provider"],
         source_unit=row["source_unit"],
         source_price_value=row["source_price_value"],
+        retrieved_at=row["retrieved_at"] if "retrieved_at" in row.keys() else None,
     )
 
 def query_observations(
@@ -139,21 +140,26 @@ def query_observations(
         conn.row_factory = sqlite3.Row
         query = "SELECT * FROM observations WHERE 1=1"
         params: List = []
-        if commodity:
-            query += " AND commodity = ?"
-            params.append(commodity)
-        if district:
-            query += " AND district = ?"
-            params.append(district)
-        if market:
-            query += " AND market = ?"
-            params.append(market)
-        if state:
-            query += " AND state = ?"
-            params.append(state)
+        if commodity and commodity.strip():
+            c_clean = commodity.strip()
+            query += " AND (LOWER(commodity) = LOWER(?) OR LOWER(commodity) LIKE LOWER(?) OR LOWER(variety) LIKE LOWER(?))"
+            params.extend([c_clean, f"{c_clean}%", f"%{c_clean}%"])
+        if district and district.strip():
+            query += " AND LOWER(district) = LOWER(?)"
+            params.append(district.strip())
+        if market and market.strip():
+            m_clean = market.strip()
+            # Match exact, or with/without "APMC" suffix
+            m_no_apmc = m_clean.lower().replace(" apmc", "").strip()
+            query += " AND (LOWER(market) = LOWER(?) OR LOWER(REPLACE(market, ' APMC', '')) = LOWER(?))"
+            params.extend([m_clean, m_no_apmc])
+        if state and state.strip():
+            query += " AND LOWER(state) = LOWER(?)"
+            params.append(state.strip())
         cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
         query += " AND datetime(retrieved_at) >= datetime(?)"
         params.append(cutoff.isoformat())
+        query += " ORDER BY date DESC"
         cur = conn.execute(query, params)
         rows = cur.fetchall()
         return [_row_to_market_price(row) for row in rows]

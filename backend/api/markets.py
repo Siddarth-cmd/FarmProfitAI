@@ -106,10 +106,10 @@ def get_markets(
         description="District name to filter by (e.g., Nashik)",
     ),
     limit: int = Query(
-        default=10,
+        default=100,
         ge=1,
-        le=100,
-        description="Maximum number of records to return",
+        le=500,
+        description="Maximum number of records to return (default: 100, max: 500)",
     ),
     api_key: str | None = Query(
         default=None,

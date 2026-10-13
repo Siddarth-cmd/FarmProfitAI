@@ -13,10 +13,17 @@ _ALIASES = {
     "bangalore": "bengaluru",
     "belgaum": "belagavi",
     "bellary": "ballari",
+    "bijapur": "vijayapura",
+    "chickkaballapura": "chikkaballapur",
+    "chikkaballapura": "chikkaballapur",
+    "chikmagalur": "chikkamagaluru",
+    "gulbarga": "kalaburagi",
     "mysore": "mysuru",
+    "ramanagara": "ramanagar",
     "shimoga": "shivamogga",
     "tumkur": "tumakuru",
 }
+
 
 
 def normalize_catalogue_name(value: str) -> str:

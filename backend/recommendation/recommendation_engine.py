@@ -17,7 +17,11 @@ from pydantic import BaseModel, Field, ValidationError
 from models.market_models import MarketPrice
 from models.profit_models import MarketComparison, MarketOption, ProfitRequest
 from recommendation.profit_engine import calculate_profits
-from core.logistics import LogisticsConfig
+from core.logistics import (
+    LogisticsConfig,
+    calculate_dedicated_vehicle_transport,
+    calculate_shared_load_transport,
+)
 from services.distance_provider import RoadDistanceProvider
 
 
@@ -320,6 +324,7 @@ def recommend_market(
     incomplete_markets: list[MarketComparison] = []
     route_results: dict[str, Any] = {}
     basis_by_market: dict[str, str] = {}
+    transport_rates: dict[str, tuple[float, str, bool, int]] = {}
 
     # Validate and deduplicate candidate market prices safely
     valid_by_market: dict[str, MarketPrice] = {}
@@ -448,34 +453,55 @@ def recommend_market(
                     )
                 )
                 continue
-            trips_required = math.ceil(qty / logistics.vehicle_capacity_kg) if logistics.transport_mode == "dedicated_vehicle" else 1
             if logistics.transport_mode == "shared_load":
-                # Shared load transport calculation:
-                # 1. If farmer gave a direct shared_rate (e.g. ₹30/crate or ₹1.5/kg)
-                if logistics.shared_rate is not None:
-                    if logistics.shared_rate_type == "per_crate":
-                        crates = math.ceil(qty / logistics.crate_capacity_kg)
-                        estimated_cost = crates * logistics.shared_rate
-                    elif logistics.shared_rate_type == "per_bag":
-                        bags = math.ceil(qty / logistics.bag_capacity_kg)
-                        estimated_cost = bags * logistics.shared_rate
-                    else:  # per_kg
-                        estimated_cost = qty * logistics.shared_rate
-                else:
-                    # Distance-aware shared load rate per kg (e.g. ₹0.03/kg/km * distance * kg)
-                    rate_per_kg = distance_result.distance_km * logistics.shared_rate_per_kg_per_km
-                    # Floor of ₹0.5/kg minimum shared handling
-                    rate_per_kg = max(0.5, rate_per_kg)
-                    estimated_cost = qty * rate_per_kg
+                estimated_cost, rate_applied, rate_unit, rate_is_estimate, transport_err = (
+                    calculate_shared_load_transport(
+                        qty,
+                        distance_result.distance_km,
+                        logistics,
+                    )
+                )
+                trips_required = 1
             else:
-                # Dedicated vehicle calculation (trips * distance * rate/km)
-                estimated_cost = trips_required * distance_result.distance_km * logistics.vehicle_rate_per_km
+                estimated_cost, rate_applied, rate_unit, rate_is_estimate, trips_required, transport_err = (
+                    calculate_dedicated_vehicle_transport(
+                        qty,
+                        distance_result.distance_km,
+                        logistics,
+                    )
+                )
 
-            if not math.isfinite(estimated_cost) or estimated_cost < 0:
-                raise ValueError("estimated transportation cost must be finite and non-negative")
+            if estimated_cost is None or not math.isfinite(estimated_cost) or estimated_cost < 0:
+                incomplete_markets.append(
+                    MarketComparison(
+                        name=m_name,
+                        price_per_kg=float(price_per_kg),
+                        transportation_cost=0.0,
+                        other_costs=_resolve_other_cost(other_costs, m_name),
+                        gross_revenue=0.0,
+                        net_return=0.0,
+                        rank=0,
+                        price_type=rec.price_type,
+                        is_stale=rec.is_stale,
+                        freshness_status=rec.freshness_status,
+                        distance_source=distance_result.source,
+                        distance_status=distance_result.status,
+                        distance_km=distance_result.distance_km,
+                        transport_mode=logistics.transport_mode,
+                        rate_applied=rate_applied,
+                        rate_unit=rate_unit,
+                        rate_is_estimate=rate_is_estimate,
+                        transport_cost_basis="unavailable",
+                        transport_error=transport_err or distance_result.error or "Road distance unavailable.",
+                        comparable=False,
+                    )
+                )
+                continue
+
             t_cost = estimated_cost
             cost_basis = "estimated"
             basis_by_market[m_name] = cost_basis
+            transport_rates[m_name] = (rate_applied, rate_unit, rate_is_estimate, trips_required)
         else:
             if (
                 transportation_cost_provider is None
@@ -593,6 +619,12 @@ def recommend_market(
             comparison.observation_date = str(source_record.date) if getattr(source_record, "date", None) else None
             comparison.source_provider = getattr(source_record, "source_provider", None)
             comparison.transport_mode = logistics.transport_mode
+            if comparison.name in transport_rates:
+                r_app, r_unit, r_est, trips = transport_rates[comparison.name]
+                comparison.rate_applied = r_app
+                comparison.rate_unit = r_unit
+                comparison.rate_is_estimate = r_est
+                comparison.trips_required = trips
             if distance_provider is not None and _mapped_cost(transportation_costs, comparison.name) is None:
                 distance_result = route_results[comparison.name]
                 comparison.distance_km = distance_result.distance_km
@@ -600,11 +632,13 @@ def recommend_market(
                 comparison.distance_status = distance_result.status
                 comparison.vehicle_capacity_kg = logistics.vehicle_capacity_kg
                 comparison.vehicle_rate_per_km = logistics.vehicle_rate_per_km
-                comparison.trips_required = math.ceil(qty / logistics.vehicle_capacity_kg) if logistics.transport_mode == "dedicated_vehicle" else 1
                 comparison.estimated_transport_cost = comparison.transportation_cost
                 comparison.transport_cost_basis = basis_by_market[comparison.name]
             elif _mapped_cost(transportation_costs, comparison.name) is not None:
                 comparison.transport_cost_basis = basis_by_market[comparison.name]
+                comparison.rate_unit = "quote"
+                comparison.rate_applied = comparison.transportation_cost
+                comparison.rate_is_estimate = False
 
     best = profit_result.comparisons[0]
     alternatives = profit_result.comparisons[1:]

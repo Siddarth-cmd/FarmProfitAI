@@ -52,6 +52,17 @@ _RETRY_BASE_SECONDS = 1
 _FILTER_CACHE_TTL_SECONDS = 600  # 10 minutes
 _filter_cache: dict[str, object] = {"payload": None, "expires_at": 0.0}
 
+_PRICE_CACHE_TTL_SECONDS = 600  # 10 minutes
+_price_cache: dict[tuple[int, int, int], tuple[float, object]] = {}
+
+
+def clear_caches() -> None:
+    """Clear in-process caches for testing and fresh reload."""
+    _filter_cache["payload"] = None
+    _filter_cache["expires_at"] = 0.0
+    _price_cache.clear()
+
+
 
 def _max_age_days() -> int:
     raw = os.getenv("AGMARKNET_MAX_AGE_DAYS", str(DEFAULT_MAX_AGE_DAYS))
@@ -173,6 +184,71 @@ def _same(value: object, query: str | None) -> bool:
     return bool(query and _text(value).casefold() == query.strip().casefold())
 
 
+_COMMODITY_ALIASES: dict[str, str] = {
+    "ragi": "Ragi(Finger Millet)",
+    "bengal gram": "Bengal Gram(Gram)(Whole)",
+    "chana": "Bengal Gram(Gram)(Whole)",
+    "gram": "Bengal Gram(Gram)(Whole)",
+    "chilli": "Green Chilli",
+    "chillies": "Green Chilli",
+    "paddy": "Paddy(Common)",
+    "cotton": "Cotton",
+    "groundnut": "Groundnut",
+    "tur": "Arhar (Tur/Red Gram)(Whole)",
+    "red gram": "Arhar (Tur/Red Gram)(Whole)",
+    "toor": "Arhar (Tur/Red Gram)(Whole)",
+    "toor dal": "Arhar Dal(Tur Dal)",
+    "green gram": "Green Gram (Moong)(Whole)",
+    "moong": "Green Gram (Moong)(Whole)",
+    "black gram": "Black Gram (Urd Beans)(Whole)",
+    "urad": "Black Gram (Urd Beans)(Whole)",
+    "jowar": "Jowar(Sorghum)",
+    "sorghum": "Jowar(Sorghum)",
+    "bajra": "Bajra(Pearl Millet/Cumbu)",
+    "capsicum": "Capsicum",
+    "maize": "Maize",
+    "onion": "Onion",
+    "potato": "Potato",
+    "tomato": "Tomato",
+}
+
+
+def _resolve_commodity_row(commodities: list[dict[str, object]], query: str | None) -> dict[str, object] | None:
+    if not query or not query.strip():
+        return None
+    import re
+    q = query.strip().casefold()
+    # 1. Alias lookup
+    alias = _COMMODITY_ALIASES.get(q)
+    if alias:
+        for row in commodities:
+            if isinstance(row, dict) and _same(row.get("cmdt_name"), alias):
+                return row
+    # 2. Exact match
+    for row in commodities:
+        if isinstance(row, dict) and _same(row.get("cmdt_name"), q):
+            return row
+    # 3. Strip parentheses (e.g. "Ragi" matches "Ragi(Finger Millet)")
+    for row in commodities:
+        if isinstance(row, dict):
+            cname = _text(row.get("cmdt_name"))
+            base = re.sub(r"\(.*?\)", "", cname).strip().casefold()
+            if base == q:
+                return row
+    # 4. Word boundary / startswith match
+    for row in commodities:
+        if isinstance(row, dict):
+            cname = _text(row.get("cmdt_name")).casefold()
+            words = cname.split()
+            if q in words or cname.startswith(q):
+                return row
+    # 5. Substring match fallback
+    for row in commodities:
+        if isinstance(row, dict) and q in _text(row.get("cmdt_name")).casefold():
+            return row
+    return None
+
+
 def _finite_number(value: object) -> float | None:
     try:
         number = float(value)
@@ -210,23 +286,30 @@ def _filter_ids(
         raise AgmarknetParseError("Agmarknet filters lists were missing")
 
     state_row = next((row for row in states if isinstance(row, dict) and _same(row.get("state_name"), state)), None)
-    commodity_row = next((row for row in commodities if isinstance(row, dict) and _same(row.get("cmdt_name"), commodity)), None)
+    commodity_row = _resolve_commodity_row(commodities, commodity)
     if not state_row or not commodity_row:
         raise AgmarknetParseError("Agmarknet filters did not match the requested crop and state")
     state_id = state_row.get("state_id")
     commodity_id = commodity_row.get("cmdt_id")
-    district_row = next(
-        (
-            row for row in districts
-            if isinstance(row, dict)
-            and row.get("state_id") == state_id
-            and normalize_catalogue_name(row.get("district_name")) == normalize_catalogue_name(district)
-        ),
-        None,
-    ) if district else None
-    if district and district_row is None:
-        raise AgmarknetParseError("Agmarknet filters did not match the requested district")
-    district_id = district_row.get("id") if district_row else None
+
+    target_district_ids: set[int] = set()
+    is_ramanagar_query = False
+    if district:
+        norm_dist = normalize_catalogue_name(district)
+        if norm_dist in ("ramanagar", "ramanagara"):
+            is_ramanagar_query = True
+            # In Agmarknet, Ramanagar markets (Channapatna, Kanakapura, Ramanagara APMC)
+            # are classified under district_id 728 (Bengaluru South) while 265 has 0 markets.
+            target_district_ids.update({265, 728})
+        else:
+            for row in districts:
+                if isinstance(row, dict) and row.get("state_id") == state_id:
+                    if normalize_catalogue_name(row.get("district_name")) == norm_dist:
+                        target_district_ids.add(row.get("id"))
+
+        if not target_district_ids:
+            raise AgmarknetParseError("Agmarknet filters did not match the requested district")
+
     district_names_by_id = {
         row.get("id"): _text(row.get("district_name"))
         for row in districts
@@ -260,10 +343,20 @@ def _filter_ids(
             )
             or (
                 not market_names
-                and (district_id is None or row.get("district_id") == district_id)
+                and (not target_district_ids or row.get("district_id") in target_district_ids)
             )
         )
     ]
+    if is_ramanagar_query:
+        # Keep only the actual Ramanagar APMCs
+        selected_markets = [
+            m for m in selected_markets
+            if any(k in _text(m.get("mkt_name")).casefold() for k in ("ramanagar", "channapatna", "kanakapura"))
+        ]
+        # Ensure district display name is Ramanagar for these records
+        for m in selected_markets:
+            district_names_by_id[m.get("district_id")] = "Ramanagar"
+
     if not isinstance(state_id, int) or not isinstance(commodity_id, int):
         raise AgmarknetParseError("Agmarknet filter IDs were invalid")
     if market_names and not selected_markets:
@@ -448,24 +541,55 @@ def fetch_market_prices(
         district=district,
         market_names=market_names,
     )
+    # Diversify markets across districts when querying state-wide without specific market filters
+    if not district and not market_names:
+        from collections import defaultdict
+        by_dist = defaultdict(list)
+        for m in markets:
+            by_dist[m.get("district_id")].append(m)
+        candidate_markets = []
+        max_len = max((len(v) for v in by_dist.values()), default=0)
+        for i in range(max_len):
+            for m_list in by_dist.values():
+                if i < len(m_list):
+                    candidate_markets.append(m_list[i])
+    else:
+        candidate_markets = markets
+
     records: list[MarketPrice] = []
     skipped = 0
-    for market_row in markets:
+    now = time.monotonic()
+    for idx, market_row in enumerate(candidate_markets):
         market_id = market_row.get("id")
         market_name = _text(market_row.get("mkt_name"))
         if not isinstance(market_id, int) or not market_name:
             skipped += 1
             continue
         market_district = district_names_by_id.get(market_row.get("district_id")) or district or market_name
-        payload = _request_json(
-            "/prices-and-arrivals/market-price/lastweek",
-            params={
-                "marketId": market_id,
-                "stateId": state_id,
-                "commodityId": commodity_id,
-                "includeExcel": "false",
-            },
-        )
+
+        cache_key = (market_id, state_id, commodity_id)
+        cached_entry = _price_cache.get(cache_key)
+        if cached_entry is not None and now < cached_entry[0]:
+            payload = cached_entry[1]
+        else:
+            if idx > 0:
+                time.sleep(0.05)
+            try:
+                payload = _request_json(
+                    "/prices-and-arrivals/market-price/lastweek",
+                    params={
+                        "marketId": market_id,
+                        "stateId": state_id,
+                        "commodityId": commodity_id,
+                        "includeExcel": "false",
+                    },
+                )
+                _price_cache[cache_key] = (now + _PRICE_CACHE_TTL_SECONDS, payload)
+            except (AgmarknetServiceError, AgmarknetRateLimitError) as exc:
+                if records:
+                    break
+                raise
+
         market_records, market_skipped = _records_from_report(
             payload,
             commodity=commodity,
@@ -475,18 +599,19 @@ def fetch_market_prices(
         )
         records.extend(market_records)
         skipped += market_skipped
-        if len(records) >= limit:
+        distinct_markets_count = len({r.market for r in records})
+        if distinct_markets_count >= limit:
             break
     records.sort(key=lambda record: record.date, reverse=True)
     return MarketDataFetchResult(
-        records=records[:limit],
+        records=records,
         skipped_invalid=skipped,
         source=SOURCE_NAME if records else None,
         available=bool(records),
         error_kind=None if records else "data",
         error_message=None
         if records
-        else "No Agmarknet market records matched the requested filters.",
+        else f"No Agmarknet market arrivals reported for {commodity} in {district or state} during the observation period.",
     )
 
 

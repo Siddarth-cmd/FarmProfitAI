@@ -34,7 +34,8 @@ from services.market_catalogue import find_catalogue_entries, normalize_catalogu
 RESOURCE_URL = (
     "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
 )
-DEFAULT_LIMIT = 10
+DEFAULT_LIMIT = 100          # default page size; data.gov.in allows up to 1000
+MAX_PAGE_SIZE = 100          # safe page size that data.gov.in reliably serves
 TIMEOUT_SECONDS = 15
 SOURCE_NAME = "data.gov.in"
 # Agmarknet mandi prices are INR per quintal; 1 quintal = 100 kg.
@@ -135,6 +136,12 @@ def _map_api_record(raw: dict[str, Any]) -> dict[str, Any] | None:
     if min_price is None or max_price is None or modal_price is None:
         return None
 
+    raw_modal = None
+    try:
+        raw_modal = float(raw.get("modal_price"))
+    except (TypeError, ValueError):
+        pass
+
     return {
         "commodity": raw.get("commodity"),
         "variety": raw.get("variety"),
@@ -145,6 +152,11 @@ def _map_api_record(raw: dict[str, Any]) -> dict[str, Any] | None:
         "min_price": min_price,
         "max_price": max_price,
         "modal_price": modal_price,
+        "observation_price_per_kg": modal_price,
+        "price_type": "modal_price",
+        "source_provider": SOURCE_NAME,
+        "source_unit": "Rs./Quintal",
+        "source_price_value": raw_modal,
     }
 
 
@@ -154,12 +166,15 @@ def _build_url(
     commodity: str | None,
     state: str | None,
     district: str | None,
+    offset: int = 0,
 ) -> str:
     query: dict[str, str] = {
         "api-key": api_key,
         "format": "json",
         "limit": str(limit),
     }
+    if offset > 0:
+        query["offset"] = str(offset)
     if commodity and commodity.strip():
         query["filters[commodity]"] = commodity.strip()
     if state and state.strip():
@@ -264,6 +279,7 @@ def _matches_market_names(record: MarketPrice, market_names: list[str] | None) -
 def fetch_market_prices(
     *,
     limit: int = DEFAULT_LIMIT,
+    offset: int = 0,
     commodity: str | None = None,
     state: str | None = None,
     district: str | None = None,
@@ -272,34 +288,62 @@ def fetch_market_prices(
 ) -> MarketDataFetchResult:
     """Fetch and validate mandi prices from Data.gov.in.
 
-    Raises DataGovError subclasses on configuration, transport, HTTP, or
-    payload failures. Invalid individual rows are skipped, not raised.
+    When ``limit`` exceeds ``MAX_PAGE_SIZE`` this function automatically paginates
+    through the data.gov.in API and merges all pages.  Invalid individual rows
+    are skipped, not raised.  Raises DataGovError subclasses on configuration,
+    transport, HTTP, or payload failures.
     """
     if limit < 1:
         raise DataGovConfigError("limit must be at least 1")
+    if offset < 0:
+        raise DataGovConfigError("offset must be non-negative")
 
     key = api_key if api_key is not None else get_api_key()
-    url = _build_url(key, limit, commodity, state, district)
-    _status, body = _read_http_body(url)
-    raw_records = _parse_records_payload(body)
-    records, skipped = _normalize_records(raw_records)
-    records = [
-        record for record in records
-        if _matches_market_names(record, market_names)
-    ]
+
+    all_records: list[MarketPrice] = []
+    total_skipped = 0
+    remaining = limit
+    current_offset = offset
+
+    while remaining > 0:
+        page_size = min(remaining, MAX_PAGE_SIZE)
+        url = _build_url(key, page_size, commodity, state, district, offset=current_offset)
+        _status, body = _read_http_body(url)
+        raw_records = _parse_records_payload(body)
+
+        # Empty page → no more data from provider
+        if not raw_records:
+            break
+
+        records, skipped = _normalize_records(raw_records)
+        records = [
+            record for record in records
+            if _matches_market_names(record, market_names)
+        ]
+        all_records.extend(records)
+        total_skipped += skipped
+
+        # If the provider returned fewer rows than requested the page was the last
+        if len(raw_records) < page_size:
+            break
+
+        remaining -= page_size
+        current_offset += page_size
+
     return MarketDataFetchResult(
-        records=records,
-        skipped_invalid=skipped,
+        records=all_records,
+        skipped_invalid=total_skipped,
         source=SOURCE_NAME,
-        available=bool(records),
-        error_kind=None if records else "data",
-        error_message=None if records else "No Data.gov.in market records matched the requested filters.",
+        available=bool(all_records),
+        error_kind=None if all_records else "data",
+        error_message=None if all_records else "No Data.gov.in market records matched the requested filters.",
     )
 
 
 def try_fetch_market_prices(
     *,
     limit: int = DEFAULT_LIMIT,
+    offset: int = 0,
     commodity: str | None = None,
     state: str | None = None,
     district: str | None = None,
@@ -314,6 +358,7 @@ def try_fetch_market_prices(
     try:
         return fetch_market_prices(
             limit=limit,
+            offset=offset,
             commodity=commodity,
             state=state,
             district=district,

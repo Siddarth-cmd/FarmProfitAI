@@ -283,8 +283,8 @@ def test_get_markets_query_validation(client):
     res_zero = client.get("/markets", params={"limit": 0})
     assert res_zero.status_code == 422
 
-    # limit must be <= 100
-    res_too_large = client.get("/markets", params={"limit": 101})
+    # limit must be <= 500 (raised from 100 to allow full state-wide Karnataka queries)
+    res_too_large = client.get("/markets", params={"limit": 501})
     assert res_too_large.status_code == 422
 
 
@@ -389,3 +389,38 @@ def test_market_catalogue_matches_legacy_provider_names_by_crop_and_district(cli
     assert next(
         entry for entry in data["entries"] if entry["name"] == "Hunsur APMC"
     )["price_available"] is False
+
+
+def test_get_markets_state_wide_karnataka(client, monkeypatch):
+    observed = MarketPrice(
+        commodity="Tomato",
+        variety="Local",
+        state="Karnataka",
+        district="Kolar",
+        market="Kolar APMC",
+        date="2026-10-10",
+        min_price=20.0,
+        modal_price=24.0,
+        max_price=28.0,
+        source_provider="agmarknet.gov.in",
+    )
+    monkeypatch.setattr(
+        "api.markets.fetch_market_prices_with_fallback",
+        lambda **kwargs: MarketDataFetchResult(
+            records=[observed],
+            source="agmarknet.gov.in",
+            available=True,
+            using_fallback=False,
+        ),
+    )
+
+    response = client.get("/markets", params={"commodity": "Tomato", "state": "Karnataka", "limit": 20})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["available"] is True
+    assert data["count"] == 1
+    assert data["source"] == "agmarknet.gov.in"
+    assert data["using_fallback"] is False
+    assert data["records"][0]["market"] == "Kolar APMC"
+    assert data["records"][0]["district"] == "Kolar"
+

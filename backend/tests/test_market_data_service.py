@@ -358,3 +358,48 @@ def test_datagov_returns_all_state_wide_when_district_has_no_match(monkeypatch):
     assert len(result.records) == 2, (
         "All state-wide records must be returned when the requested district has no match."
     )
+
+
+def test_live_failure_uses_valid_cached_records_before_local_fallback(monkeypatch):
+    """When live providers fail, valid cached records from DB take priority over local demo fallback."""
+    from datetime import datetime, timezone
+    from db import upsert_observation
+
+    # Seed the isolated DB with a cached observation
+    cached_obs = MarketPrice(
+        commodity="Tomato",
+        variety="Local",
+        state="Karnataka",
+        district="Hassan",
+        market="Hassan APMC",
+        date=date.today(),
+        min_price=18.0,
+        modal_price=22.0,
+        max_price=25.0,
+        source_provider="agmarknet.gov.in",
+    )
+    upsert_observation(cached_obs, "agmarknet.gov.in", datetime.now(timezone.utc))
+
+    # Live providers both fail
+    monkeypatch.setattr(
+        "services.agmarknet_client.try_fetch_market_prices",
+        lambda **_: MarketDataFetchResult(records=[], available=False, source=None, error_kind="service"),
+    )
+    monkeypatch.setattr(
+        "services.data_gov_client.try_fetch_market_prices",
+        lambda **_: MarketDataFetchResult(records=[], available=False, source=None, error_kind="service"),
+    )
+
+    result = fetch_market_prices_with_fallback(
+        commodity="Tomato",
+        state="Karnataka",
+        district="Hassan",
+    )
+
+    assert result.available is True
+    assert result.using_fallback is False
+    assert "cached" in (result.source or "").lower()
+    assert len(result.records) == 1
+    assert result.records[0].market == "Hassan APMC"
+    assert result.records[0].freshness_status == "cached"
+

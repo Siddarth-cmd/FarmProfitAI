@@ -72,6 +72,9 @@ class MarketComparison(BaseModel):
     vehicle_capacity_kg: float | None = None
     vehicle_rate_per_km: float | None = None
     trips_required: int | None = None
+    rate_applied: float | None = None
+    rate_unit: str | None = None
+    rate_is_estimate: bool = False
     estimated_transport_cost: float | None = None
     transport_cost_basis: Literal["actual_quote", "estimated", "unavailable"] = "unavailable"
     transport_error: str | None = None

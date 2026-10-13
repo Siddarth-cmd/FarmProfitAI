@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Wheat,
   Scale,
-  MapPin,
   Truck,
   AlertCircle,
   CheckCircle2,
@@ -33,17 +32,15 @@ export default function FarmerInput({ onSubmit, isLoading }) {
   ])
   const [crop, setCrop] = useState('Tomato')
   const [quantity, setQuantity] = useState('500')
-  const [location, setLocation] = useState('Mandya')
   const [state, setState] = useState('Karnataka')
   const [district, setDistrict] = useState('')
   const [transportMode, setTransportMode] = useState('dedicated_vehicle') // 'dedicated_vehicle' | 'shared_load'
-  const [sharedRateType, setSharedRateType] = useState('per_kg') // 'per_kg' | 'per_crate' | 'per_bag'
+  const [sharedRateType, setSharedRateType] = useState('per_kg_per_km') // 'per_kg_per_km' | 'per_crate' | 'per_bag'
+  const [sharedPricingBasis, setSharedPricingBasis] = useState('distance_based') // 'distance_based' | 'fixed_trip'
   const [sharedRate, setSharedRate] = useState('')
   const [filterOptions, setFilterOptions] = useState({ states: [], districts: [], locations: [] })
   const [filtersLoading, setFiltersLoading] = useState(true)
   const [filtersError, setFiltersError] = useState(null)
-  const [locationOpen, setLocationOpen] = useState(false)
-  const [locationHighlight, setLocationHighlight] = useState(0)
   const [otherCosts, setOtherCosts] = useState('0')
   const [lossPercentage, setLossPercentage] = useState('')
   const [markets, setMarkets] = useState([])
@@ -87,12 +84,50 @@ export default function FarmerInput({ onSubmit, isLoading }) {
         setMarketsError(response.error?.message || t('marketOptionsUnavailable'))
         return
       }
-      setAvailableMarkets(response.entries || [])
+      const entries = response.entries || []
+      setAvailableMarkets(entries)
+      // Auto-select top suitable markets if none are currently selected
+      setMarkets((current) => {
+        if (current.length > 0) return current
+        const normDist = (district || '').trim().toLowerCase()
+        const localWithPrice = entries.filter(
+          (m) => m.price_available && (m.district || '').trim().toLowerCase() === normDist
+        )
+        const othersWithPrice = entries.filter(
+          (m) => m.price_available && (m.district || '').trim().toLowerCase() !== normDist
+        )
+        const localWithoutPrice = entries.filter(
+          (m) => !m.price_available && (m.district || '').trim().toLowerCase() === normDist
+        )
+        const candidatePool = [...localWithPrice, ...othersWithPrice, ...localWithoutPrice]
+        const top = candidatePool.slice(0, 3).map((m) => ({ name: m.name, transportCost: '' }))
+        return top.length > 0 ? top : current
+      })
     })
     return () => {
       active = false
     }
   }, [crop, district, t])
+
+  const handleAutoSelectTopMarkets = useCallback(() => {
+    if (!availableMarkets || availableMarkets.length === 0) return
+    const normDist = (district || '').trim().toLowerCase()
+    const localWithPrice = availableMarkets.filter(
+      (m) => m.price_available && (m.district || '').trim().toLowerCase() === normDist
+    )
+    const othersWithPrice = availableMarkets.filter(
+      (m) => m.price_available && (m.district || '').trim().toLowerCase() !== normDist
+    )
+    const localWithoutPrice = availableMarkets.filter(
+      (m) => !m.price_available && (m.district || '').trim().toLowerCase() === normDist
+    )
+    const candidatePool = [...localWithPrice, ...othersWithPrice, ...localWithoutPrice]
+    const top = candidatePool.slice(0, 4).map((m) => ({ name: m.name, transportCost: '' }))
+    if (top.length > 0) {
+      setMarkets(top)
+      setFormError('')
+    }
+  }, [availableMarkets, district])
 
   const filteredMarkets = useMemo(() => {
     const query = marketSearch.trim().toLocaleLowerCase()
@@ -125,18 +160,6 @@ export default function FarmerInput({ onSubmit, isLoading }) {
       : [],
     [filterOptions.districts, selectedState],
   )
-  const locationSuggestions = useMemo(() => {
-    if (!district) return []
-    const query = location.trim().toLocaleLowerCase()
-    const selectedDistrict = district.trim().toLocaleLowerCase()
-    return filterOptions.locations
-      .filter((option) => (
-        (!option.state || !state || option.state.toLocaleLowerCase() === state.trim().toLocaleLowerCase())
-        && (!option.district || option.district.toLocaleLowerCase() === selectedDistrict)
-        && option.name.toLocaleLowerCase().includes(query)
-      ))
-      .map((option) => option.name)
-  }, [district, filterOptions.locations, location, state])
 
   const handleMarketCostChange = (index, value) => {
     const updated = [...markets]
@@ -147,45 +170,16 @@ export default function FarmerInput({ onSubmit, isLoading }) {
   const handleStateChange = (event) => {
     setState(event.target.value)
     setDistrict('')
-    setLocation('')
-    setLocationOpen(false)
-    setLocationHighlight(0)
   }
 
   const handleDistrictChange = (event) => {
     setDistrict(event.target.value)
-    setLocation('')
-    setLocationOpen(false)
-    setLocationHighlight(0)
-  }
-
-  const handleLocationKeyDown = (event) => {
-    if (event.key === 'ArrowDown' && locationSuggestions.length > 0) {
-      event.preventDefault()
-      setLocationOpen(true)
-      setLocationHighlight((index) => (index + 1) % locationSuggestions.length)
-    } else if (event.key === 'ArrowUp' && locationSuggestions.length > 0) {
-      event.preventDefault()
-      setLocationHighlight((index) => (
-        index === 0 ? locationSuggestions.length - 1 : index - 1
-      ))
-    } else if (event.key === 'Enter' && locationOpen && locationSuggestions.length > 0) {
-      event.preventDefault()
-      setLocation(locationSuggestions[locationHighlight])
-      setLocationOpen(false)
-    } else if (event.key === 'Escape') {
-      setLocationOpen(false)
-    }
   }
 
   const handleSubmit = (e) => {
     e.preventDefault()
     setFormError('')
 
-    if (!location.trim()) {
-      setFormError(t('validationLocation'))
-      return
-    }
     if (!state.trim()) {
       setFormError(t('validationState'))
       return
@@ -284,10 +278,13 @@ export default function FarmerInput({ onSubmit, isLoading }) {
       return
     }
 
+    // farmer_location uses district as the origin for road-distance lookups
+    const farmerLocation = district.trim() || state.trim()
+
     const payload = {
       crop: singleCropName,
       quantity_kg: singleCropQty,
-      farmer_location: location.trim(),
+      farmer_location: farmerLocation,
       state: state.trim(),
       district: district.trim(),
       selected_markets: markets.map((market) => market.name),
@@ -295,8 +292,32 @@ export default function FarmerInput({ onSubmit, isLoading }) {
       other_costs: otherNum,
       transportation_cost_basis: transportBasis,
       transport_mode: transportMode,
-      shared_rate_type: sharedRateType,
-      shared_rate: parsedSharedRate,
+    }
+
+    // Shared-load rate configuration
+    if (transportMode === 'shared_load') {
+      payload.shared_pricing_basis = sharedPricingBasis
+      if (parsedSharedRate !== null) {
+        if (sharedPricingBasis === 'distance_based') {
+          if (sharedRateType === 'per_kg_per_km') {
+            payload.shared_rate_per_kg_per_km = parsedSharedRate
+            payload.shared_rate_type = 'per_kg_per_km'
+          } else {
+            payload.shared_rate = parsedSharedRate
+            payload.shared_rate_type = sharedRateType
+          }
+        } else {
+          payload.shared_rate = parsedSharedRate
+          payload.shared_rate_type = sharedRateType
+        }
+      } else {
+        if (sharedPricingBasis === 'distance_based') {
+          payload.shared_rate_type = sharedRateType
+          payload.shared_rate_per_kg_per_km = 0.03
+        } else {
+          payload.shared_rate_type = sharedRateType
+        }
+      }
     }
 
     if (harvestType === 'multi' && payloadCrops) {
@@ -484,9 +505,73 @@ export default function FarmerInput({ onSubmit, isLoading }) {
               </div>
             )}
 
-            {/* Field 2 & 3: Quantity & Location */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Quantity */}
+            {/* Section 2: State & District */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label htmlFor="state" className="text-sm font-bold text-[#173F2A] uppercase tracking-wider block mb-2">
+                  {t('stateRequired')}
+                </label>
+                <div className="relative">
+                  <select
+                    id="state"
+                    value={state}
+                    onChange={handleStateChange}
+                    disabled={filtersLoading || filterOptions.states.length === 0}
+                    aria-describedby="farmer-filters-status"
+                    className="w-full appearance-none pr-10 px-4 py-3 rounded-xl bg-[#F7F3E8]/50 border border-[#E4E1D7] focus:bg-[#FFFDF7] focus:border-[#173F2A] focus:ring-2 focus:ring-[#173F2A]/10 text-[#1E2921] text-sm outline-hidden disabled:opacity-60"
+                  >
+                    {filterOptions.states.map((option) => (
+                      <option key={option.id} value={option.name}>{option.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#68736B]" />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="district" className="text-sm font-bold text-[#173F2A] uppercase tracking-wider block mb-2">
+                  {t('districtRequired')}
+                </label>
+                <div className="relative">
+                  <input
+                    id="district"
+                    type="text"
+                    list="farmer-district-options"
+                    autoComplete="off"
+                    value={district}
+                    onChange={handleDistrictChange}
+                    placeholder={selectedState ? t('districtPlaceholder') : t('selectStateFirst')}
+                    disabled={!selectedState && filterOptions.states.length > 0}
+                    aria-describedby="farmer-filters-status"
+                    className="w-full appearance-none pr-10 px-4 py-3 rounded-xl bg-[#F7F3E8]/50 border border-[#E4E1D7] focus:bg-[#FFFDF7] focus:border-[#173F2A] focus:ring-2 focus:ring-[#173F2A]/10 text-[#1E2921] text-sm outline-hidden disabled:opacity-60"
+                  />
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#68736B]" />
+                  <datalist id="farmer-district-options">
+                    {districtOptions.map((option) => (
+                      <option key={option.id} value={option.name} />
+                    ))}
+                  </datalist>
+                </div>
+              </div>
+              <div id="farmer-filters-status" className="col-span-full flex items-center gap-2 text-xs text-[#68736B]" aria-live="polite">
+                {filtersLoading && <span>{t('marketFiltersLoading')}</span>}
+                {!filtersLoading && filtersError && (
+                  <>
+                    <span>{t('marketFiltersUnavailable')}</span>
+                    <button
+                      type="button"
+                      onClick={loadFilters}
+                      className="inline-flex items-center gap-1 font-semibold text-[#173F2A] hover:underline"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      {t('retry')}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Section 3: Quantity */}
+            {harvestType === 'single' && (
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label htmlFor="quantity" className="text-sm font-bold text-[#173F2A] uppercase tracking-wider flex items-center gap-2">
@@ -495,71 +580,6 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                   </label>
                   <span className="text-xs text-[#68736B]">{t('produceWeight')}</span>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label htmlFor="state" className="text-sm font-bold text-[#173F2A] uppercase tracking-wider block mb-2">
-                      {t('stateRequired')}
-                    </label>
-                    <div className="relative">
-                      <select
-                        id="state"
-                        value={state}
-                        onChange={handleStateChange}
-                        disabled={filtersLoading || filterOptions.states.length === 0}
-                        aria-describedby="farmer-filters-status"
-                        className="w-full appearance-none pr-10 px-4 py-3 rounded-xl bg-[#F7F3E8]/50 border border-[#E4E1D7] focus:bg-[#FFFDF7] focus:border-[#173F2A] focus:ring-2 focus:ring-[#173F2A]/10 text-[#1E2921] text-sm outline-hidden disabled:opacity-60"
-                      >
-                        {filterOptions.states.map((option) => (
-                          <option key={option.id} value={option.name}>{option.name}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#68736B]" />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="district" className="text-sm font-bold text-[#173F2A] uppercase tracking-wider block mb-2">
-                      {t('districtRequired')}
-                    </label>
-                    <div className="relative">
-                      <input
-                        id="district"
-                        type="text"
-                        list="farmer-district-options"
-                        autoComplete="off"
-                        value={district}
-                        onChange={handleDistrictChange}
-                        placeholder={selectedState ? t('districtPlaceholder') : t('selectStateFirst')}
-                        disabled={!selectedState && filterOptions.states.length > 0}
-                        aria-describedby="farmer-filters-status"
-                        className="w-full appearance-none pr-10 px-4 py-3 rounded-xl bg-[#F7F3E8]/50 border border-[#E4E1D7] focus:bg-[#FFFDF7] focus:border-[#173F2A] focus:ring-2 focus:ring-[#173F2A]/10 text-[#1E2921] text-sm outline-hidden disabled:opacity-60"
-                      />
-                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#68736B]" />
-                      <datalist id="farmer-district-options">
-                        {districtOptions.map((option) => (
-                          <option key={option.id} value={option.name} />
-                        ))}
-                      </datalist>
-                    </div>
-                  </div>
-                </div>
-                <div id="farmer-filters-status" className="mt-2 flex items-center gap-2 text-xs text-[#68736B]" aria-live="polite">
-                  {filtersLoading && <span>{t('marketFiltersLoading')}</span>}
-                  {!filtersLoading && filtersError && (
-                    <>
-                      <span>{t('marketFiltersUnavailable')}</span>
-                      <button
-                        type="button"
-                        onClick={loadFilters}
-                        className="inline-flex items-center gap-1 font-semibold text-[#173F2A] hover:underline"
-                      >
-                        <RefreshCw className="w-3 h-3" />
-                        {t('retry')}
-                      </button>
-                    </>
-                  )}
-                </div>
-
                 <div className="relative mb-2">
                   <input
                     id="quantity"
@@ -575,7 +595,6 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                     {t('unitKg')}
                   </span>
                 </div>
-
                 {/* Presets */}
                 <div className="flex gap-2">
                   {QUANTITY_PRESETS.map((q) => (
@@ -594,95 +613,7 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                   ))}
                 </div>
               </div>
-
-              {/* Farmer Location */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label htmlFor="location" className="text-sm font-bold text-[#173F2A] uppercase tracking-wider flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-[#6F8F72]" />
-                    <span>{t('farmLocation')}</span>
-                  </label>
-                  <span className="text-xs text-[#68736B]">{t('originDistrict')}</span>
-                </div>
-
-                <div className="relative">
-                  <input
-                    id="location"
-                    type="text"
-                    autoComplete="off"
-                    value={location}
-                    onChange={(e) => {
-                      setLocation(e.target.value)
-                      setLocationOpen(true)
-                      setLocationHighlight(0)
-                    }}
-                    onFocus={() => setLocationOpen(true)}
-                    onBlur={() => setTimeout(() => setLocationOpen(false), 150)}
-                    onKeyDown={handleLocationKeyDown}
-                    placeholder={district ? t('locationPlaceholder') : t('selectDistrictFirst')}
-                    role="combobox"
-                    aria-expanded={locationOpen}
-                    aria-controls="farmer-location-options"
-                    aria-activedescendant={
-                      locationOpen && locationSuggestions.length > 0
-                        ? `farmer-location-option-${locationHighlight}`
-                        : undefined
-                    }
-                    aria-autocomplete="list"
-                    aria-describedby="location-help"
-                    className="w-full appearance-none pr-10 px-4 py-3 rounded-xl bg-[#F7F3E8]/50 border border-[#E4E1D7] focus:bg-[#FFFDF7] focus:border-[#173F2A] focus:ring-2 focus:ring-[#173F2A]/10 text-[#1E2921] text-sm transition-all outline-hidden"
-                  />
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#68736B]" />
-                  {locationOpen && (
-                    <div
-                      id="farmer-location-options"
-                      role="listbox"
-                      className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-[#C9D8C5] bg-[#FFFDF7] shadow-lg"
-                    >
-                      {filtersLoading && (
-                        <div className="px-4 py-3 text-sm text-[#68736B]">
-                          {t('marketFiltersLoading')}
-                        </div>
-                      )}
-                      {!filtersLoading && filtersError && (
-                        <div className="px-4 py-3 text-sm text-[#68736B]">
-                          {t('marketFiltersUnavailable')}
-                        </div>
-                      )}
-                      {!filtersLoading && !filtersError && locationSuggestions.length === 0 && (
-                        <div className="px-4 py-3 text-sm text-[#68736B]">
-                          {t('locationSuggestionsEmpty')}
-                        </div>
-                      )}
-                      {!filtersLoading && !filtersError && locationSuggestions.map((option, index) => (
-                        <button
-                          key={option}
-                          id={`farmer-location-option-${index}`}
-                          type="button"
-                          role="option"
-                          aria-selected={index === locationHighlight}
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => {
-                            setLocation(option)
-                            setLocationOpen(false)
-                          }}
-                          className={`block w-full px-4 py-3 text-left text-sm text-[#1E2921] ${
-                            index === locationHighlight
-                              ? 'bg-[#DCE8D5] text-[#173F2A]'
-                              : 'hover:bg-[#F7F3E8]'
-                          }`}
-                        >
-                          {option}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <p className="mt-1 text-xs text-[#68736B]">
-                  <span id="location-help">{t('shippingStart')}</span> {t('customLocationHelp')}
-                </p>
-              </div>
-            </div>
+            )}
 
             {/* Transport Mode Selection (Feature 1) */}
             <div className="pt-4 border-t border-[#E4E1D7]">
@@ -737,17 +668,62 @@ export default function FarmerInput({ onSubmit, isLoading }) {
 
               {/* Shared Rate Configuration */}
               {transportMode === 'shared_load' && (
-                <div className="p-4 rounded-2xl bg-[#FFFDF7] border border-[#E4E1D7] mb-6 space-y-3">
+                <div className="p-4 rounded-2xl bg-[#FFFDF7] border border-[#E4E1D7] mb-6 space-y-4">
+                  {/* Pricing Model Basis: Distance-based vs Fixed trip */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#E4E1D7]">
+                    <span className="text-xs font-bold text-[#173F2A] uppercase tracking-wider">
+                      {t('pricingBasis')}
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSharedPricingBasis('distance_based')
+                          if (sharedRateType === 'per_kg') setSharedRateType('per_kg_per_km')
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                          sharedPricingBasis === 'distance_based'
+                            ? 'bg-[#173F2A] text-[#FFFDF7] shadow-xs'
+                            : 'bg-[#F7F3E8] text-[#68736B] hover:bg-[#DCE8D5]'
+                        }`}
+                      >
+                        {t('distanceBasedPricing')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSharedPricingBasis('fixed_trip')
+                          if (sharedRateType === 'per_kg_per_km') setSharedRateType('per_kg')
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                          sharedPricingBasis === 'fixed_trip'
+                            ? 'bg-[#173F2A] text-[#FFFDF7] shadow-xs'
+                            : 'bg-[#F7F3E8] text-[#68736B] hover:bg-[#DCE8D5]'
+                        }`}
+                      >
+                        {t('fixedTripPricing')}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Unit Selection */}
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-xs font-bold text-[#173F2A] uppercase tracking-wider">
                       {t('sharedRateType')}
                     </span>
-                    <div className="flex gap-2">
-                      {[
-                        ['per_kg', t('perKgRate')],
-                        ['per_crate', t('perCrateRate')],
-                        ['per_bag', t('perBagRate')],
-                      ].map(([stKey, stLabel]) => (
+                    <div className="flex flex-wrap gap-2">
+                      {(sharedPricingBasis === 'distance_based'
+                        ? [
+                            ['per_kg_per_km', t('perKgPerKmRate')],
+                            ['per_crate', t('perCrateRate')],
+                            ['per_bag', t('perBagRate')],
+                          ]
+                        : [
+                            ['per_kg', '₹/kg (Flat)'],
+                            ['per_crate', t('perCrateRate')],
+                            ['per_bag', t('perBagRate')],
+                          ]
+                      ).map(([stKey, stLabel]) => (
                         <button
                           key={stKey}
                           type="button"
@@ -773,28 +749,53 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                         step="any"
                         value={sharedRate}
                         onChange={(e) => setSharedRate(e.target.value)}
-                        placeholder={t('sharedRatePlaceholder')}
+                        placeholder={
+                          sharedPricingBasis === 'distance_based'
+                            ? sharedRateType === 'per_kg_per_km' ? '0.03' : sharedRateType === 'per_crate' ? '0.75' : '1.5'
+                            : sharedRateType === 'per_crate' ? '30' : sharedRateType === 'per_bag' ? '50' : '1.5'
+                        }
                         className="w-full pl-7 pr-3 py-2 rounded-xl bg-[#F7F3E8]/50 border border-[#E4E1D7] text-sm text-[#1E2921]"
                       />
                     </div>
                     <span className="text-xs text-[#68736B]">
-                      {t('sharedRateHelp')}
+                      {sharedPricingBasis === 'distance_based'
+                        ? (sharedRateType === 'per_kg_per_km'
+                          ? t('perKgPerKmRateHelp')
+                          : sharedRateType === 'per_crate'
+                          ? '₹/crate/km — converts to ₹/kg/km ÷ 25'
+                          : '₹/bag/km — converts to ₹/kg/km ÷ 50')
+                        : (sharedRateType === 'per_crate'
+                          ? t('perCrateRateHelp')
+                          : sharedRateType === 'per_bag'
+                          ? t('perBagRateHelp')
+                          : '₹/kg — flat full trip rate')}
                     </span>
                   </div>
+
+                  <p className="text-xs text-[#173F2A] bg-[#DCE8D5]/50 border border-[#6F8F72]/30 rounded-xl px-3 py-2 font-medium">
+                    {sharedPricingBasis === 'distance_based'
+                      ? t('sharedPricingDescDistance')
+                      : t('sharedPricingDescFixed')}
+                  </p>
                 </div>
               )}
             </div>
 
             {/* Field 4: Markets to compare & optional transportation quotes */}
             <div className="pt-4 border-t border-[#E4E1D7]">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <label className="text-sm font-bold text-[#173F2A] uppercase tracking-wider flex items-center gap-2">
                   <Truck className="w-4 h-4 text-[#6F8F72]" />
                   <span>{t('candidateMarkets')}</span>
                 </label>
-                <span className="text-xs text-[#68736B] hidden sm:inline">
-                  {t('marketsRequired')}
-                </span>
+                <button
+                  type="button"
+                  onClick={handleAutoSelectTopMarkets}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#DCE8D5] hover:bg-[#c9ddbf] text-[#173F2A] text-xs font-bold transition-all shadow-xs"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-[#C9A227]" />
+                  <span>{t('autoSelectMarkets')}</span>
+                </button>
               </div>
 
               <p className="text-xs text-[#68736B] mb-4">

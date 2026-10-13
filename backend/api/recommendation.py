@@ -7,7 +7,11 @@ from typing import Literal
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field, field_validator, model_validator
-from core.logistics import LogisticsConfig
+from core.logistics import (
+    LogisticsConfig,
+    calculate_dedicated_vehicle_transport,
+    calculate_shared_load_transport,
+)
 from core.geography import KARNATAKA_STATE
 
 from models.market_models import MarketErrorDetails, MarketPrice
@@ -42,7 +46,8 @@ class RecommendationRequest(BaseModel):
     
     # Transport options
     transport_mode: Literal["dedicated_vehicle", "shared_load"] = "dedicated_vehicle"
-    shared_rate_type: Literal["per_kg", "per_crate", "per_bag"] = "per_kg"
+    shared_rate_type: Literal["per_kg", "per_crate", "per_bag", "per_kg_per_km"] = "per_kg_per_km"
+    shared_pricing_basis: Literal["distance_based", "fixed_trip"] = "distance_based"
     shared_rate: float | None = Field(default=None, ge=0)
     shared_rate_per_kg_per_km: float | None = Field(default=None, ge=0)
     
@@ -176,16 +181,36 @@ def create_recommendation(request: RecommendationRequest) -> RecommendationRespo
         explicit_market_names = list(request.transportation_costs)
 
     # Build logistics configuration supporting shared-load vs dedicated vehicle
+    rate_is_illustrative = True
+    if request.transport_mode == "shared_load":
+        if request.shared_rate_per_kg_per_km is not None:
+            resolved_shared_rate_per_kg_per_km = float(request.shared_rate_per_kg_per_km)
+            rate_is_illustrative = False
+        elif request.shared_rate is not None and request.shared_rate_type in ("per_kg", "per_kg_per_km"):
+            resolved_shared_rate_per_kg_per_km = float(request.shared_rate)
+            rate_is_illustrative = False
+        else:
+            resolved_shared_rate_per_kg_per_km = 0.03
+            rate_is_illustrative = (request.shared_rate is None)
+    elif request.transport_mode == "dedicated_vehicle":
+        resolved_shared_rate_per_kg_per_km = 0.03
+        if request.vehicle_rate_per_km is not None:
+            rate_is_illustrative = False
+    else:
+        resolved_shared_rate_per_kg_per_km = 0.03
+
     logistics = (
         LogisticsConfig(
             transport_mode=request.transport_mode,
-            vehicle_rate_per_km=request.vehicle_rate_per_km or 15.0,
-            vehicle_capacity_kg=request.vehicle_capacity_kg or 500.0,
+            vehicle_rate_per_km=request.vehicle_rate_per_km if request.vehicle_rate_per_km is not None else 15.0,
+            vehicle_capacity_kg=request.vehicle_capacity_kg if request.vehicle_capacity_kg is not None else 500.0,
             shared_rate_type=request.shared_rate_type,
+            shared_pricing_basis=request.shared_pricing_basis,
             shared_rate=request.shared_rate,
-            shared_rate_per_kg_per_km=request.shared_rate_per_kg_per_km or 0.03,
+            shared_rate_per_kg_per_km=resolved_shared_rate_per_kg_per_km,
+            rate_is_illustrative=rate_is_illustrative,
         )
-        if request.vehicle_rate_per_km is not None or request.vehicle_capacity_kg is not None or request.transport_mode != "dedicated_vehicle" or request.shared_rate is not None
+        if request.vehicle_rate_per_km is not None or request.vehicle_capacity_kg is not None or request.transport_mode != "dedicated_vehicle" or request.shared_rate is not None or request.shared_rate_per_kg_per_km is not None
         else LogisticsConfig.from_environment()
     )
 
@@ -354,8 +379,8 @@ def create_recommendation(request: RecommendationRequest) -> RecommendationRespo
             )
 
         # 3. Calculate combined revenue and shared trip transportation
-        from services.distance_provider import default_distance_provider
-        dist_provider = default_distance_provider()
+        from services.distance_provider import create_configured_distance_provider
+        dist_provider = create_configured_distance_provider()
         ranked_comparisons: list[MarketComparison] = []
         market_dates_map: dict[str, date] = {}
 
@@ -384,10 +409,16 @@ def create_recommendation(request: RecommendationRequest) -> RecommendationRespo
 
             # Calculate shared-trip transport cost for the total combined weight
             quoted = request.transportation_costs.get(m_name)
+            rate_applied = None
+            rate_unit = None
+            rate_is_estimate = False
+            trips_count = 1
             if quoted is not None:
                 combined_transport = float(quoted)
                 basis = "actual_quote"
                 dist_km = None
+                rate_applied = combined_transport
+                rate_unit = "quote"
             elif dist_provider is not None:
                 try:
                     d_res = dist_provider.get_distance_km(request.farmer_location.strip(), m_name)
@@ -399,14 +430,16 @@ def create_recommendation(request: RecommendationRequest) -> RecommendationRespo
                     continue
                 
                 if logistics.transport_mode == "shared_load":
-                    if logistics.shared_rate is not None:
-                        combined_transport = total_quantity * logistics.shared_rate
-                    else:
-                        rate_per_kg = max(0.5, dist_km * logistics.shared_rate_per_kg_per_km)
-                        combined_transport = total_quantity * rate_per_kg
+                    cost, rate_applied, rate_unit, rate_is_estimate, _ = calculate_shared_load_transport(
+                        total_quantity, dist_km, logistics
+                    )
+                    combined_transport = cost if cost is not None else 0.0
+                    trips_count = 1
                 else:
-                    trips = math.ceil(total_quantity / logistics.vehicle_capacity_kg)
-                    combined_transport = trips * dist_km * logistics.vehicle_rate_per_km
+                    cost, rate_applied, rate_unit, rate_is_estimate, trips_count, _ = calculate_dedicated_vehicle_transport(
+                        total_quantity, dist_km, logistics
+                    )
+                    combined_transport = cost if cost is not None else 0.0
                 basis = "estimated"
             else:
                 combined_transport = 0.0
@@ -433,6 +466,10 @@ def create_recommendation(request: RecommendationRequest) -> RecommendationRespo
                     saleable_quantity_kg=sum(cb["saleable_quantity_kg"] for cb in crop_breakdowns),
                     distance_km=dist_km,
                     transport_mode=logistics.transport_mode,
+                    rate_applied=rate_applied,
+                    rate_unit=rate_unit,
+                    rate_is_estimate=rate_is_estimate,
+                    trips_required=trips_count,
                     transport_cost_basis=basis,
                     confidence_level=overall_conf,
                     crop_breakdowns=crop_breakdowns,

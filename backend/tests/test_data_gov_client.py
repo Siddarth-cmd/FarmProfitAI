@@ -299,3 +299,28 @@ def test_non_finite_prices_are_skipped(monkeypatch, field):
 
     assert result.records == []
     assert result.skipped_invalid == 1
+
+
+def test_pagination_offset_included_in_request(monkeypatch):
+    from services.data_gov_client import _build_url
+
+    url = _build_url(api_key="my-key", limit=20, commodity="Tomato", state="Karnataka", district="Kolar", offset=40)
+    assert "offset=40" in url
+    assert "limit=20" in url
+    assert "filters[commodity]=Tomato" in url
+
+
+def test_mapped_record_preserves_source_metadata_and_unit(monkeypatch):
+    def fake_urlopen(request, timeout=None):
+        return _FakeResponse(_ok_payload([_api_record(modal_price="2000", min_price="1800", max_price="2200")]))
+
+    _patch_urlopen(monkeypatch, fake_urlopen)
+    result = fetch_market_prices(api_key="test-key")
+
+    assert len(result.records) == 1
+    rec = result.records[0]
+    assert rec.source_provider == "data.gov.in"
+    assert rec.source_unit == "Rs./Quintal"
+    assert rec.source_price_value == 2000.0
+    assert rec.modal_price == 20.0
+

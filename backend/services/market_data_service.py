@@ -1,9 +1,9 @@
 from collections.abc import Mapping, Sequence
+from datetime import datetime, timezone
 
 from models.market_models import MarketPrice
 from core.geography import KARNATAKA_STATE
 from db import upsert_observation, query_observations
-from datetime import datetime, timezone
 
 
 def try_agmarknet(*args, **kwargs):
@@ -31,6 +31,27 @@ def _filter_by_district(records: list[MarketPrice], district: str | None) -> lis
         return records
     query = district.strip().casefold()
     return [r for r in records if r.district.strip().casefold() == query]
+
+
+def _deduplicate_by_market(records: list[MarketPrice]) -> list[MarketPrice]:
+    """Keep only the most recent observation per (commodity, market, district) tuple.
+
+    This prevents the same APMC market appearing multiple times (once per observation
+    date) in the results table. The user sees each distinct market once with the most
+    recent price reported.
+    """
+    best: dict[tuple[str, str, str], MarketPrice] = {}
+    for rec in records:
+        key = (
+            rec.commodity.strip().casefold(),
+            rec.market.strip().casefold(),
+            rec.district.strip().casefold(),
+        )
+        existing = best.get(key)
+        if existing is None or rec.date > existing.date:
+            best[key] = rec
+    # Preserve order by date descending (newest first)
+    return sorted(best.values(), key=lambda r: r.date, reverse=True)
 
 
 def evaluate_record_freshness_and_confidence(
@@ -61,19 +82,23 @@ def evaluate_record_freshness_and_confidence(
 
     if is_demo_fallback:
         confidence = "low"
-        freshness = "fallback_demo"
+        freshness = "fallback"
         is_stale = True
     elif age_days is None or age_days > max_threshold:
         confidence = "low"
         freshness = "stale"
         is_stale = True
-    elif age_days <= high_threshold and not is_cached:
+    elif is_cached:
+        confidence = "medium"
+        freshness = "cached"
+        is_stale = False
+    elif age_days <= high_threshold:
         confidence = "high"
         freshness = "fresh"
         is_stale = False
     else:
         confidence = "medium"
-        freshness = "within_acceptable_window" if not is_cached else "cached_acceptable"
+        freshness = "within_acceptable_window"
         is_stale = False
 
     return record.model_copy(
@@ -134,39 +159,51 @@ def fetch_market_prices_with_fallback(
     scoped_state = state
 
     # --- 1. Try Agmarknet (per-market lastweek observations) ---
+    # For state-wide queries we need to fetch enough raw observations (one per market per day
+    # for ~7 days) so that deduplication can return all distinct markets.
+    # For district-specific or named-market queries, the caller limit is sufficient.
+    agmarknet_fetch_limit = limit if (district or market_names) else max(limit * 7, 200)
     agmarknet_result = try_agmarknet(
-        limit=limit,
+        limit=agmarknet_fetch_limit,
         commodity=commodity,
         state=scoped_state,
         district=district,
         market_names=market_names,
     )
     if agmarknet_result.available and agmarknet_result.records:
-        agmarknet_result.records = [
+        evaluated = [
             evaluate_record_freshness_and_confidence(rec, source=agmarknet_result.source or "agmarknet.gov.in", is_fallback=False, is_cached=False)
             for rec in agmarknet_result.records
         ]
-        for rec in agmarknet_result.records:
+        for rec in evaluated:
             upsert_observation(rec, agmarknet_result.source or "agmarknet", datetime.now(timezone.utc))
+        # Deduplicate: one row per (commodity, market, district), keeping most recent date.
+        # Agmarknet returns one observation per market per day for the last week;
+        # the user should see each distinct APMC once with its latest price.
+        deduplicated = _deduplicate_by_market(evaluated)
+        agmarknet_result.records = deduplicated
         return agmarknet_result
 
     # --- 2. Try Data.gov.in state-wide, then client-side filter by district ---
     # Query without district so all Karnataka records are returned, avoiding
     # district-name mismatches (e.g. "Bengaluru South" vs "Bengaluru").
+    # Use a large page size so we capture all available distinct markets.
     datagov_result = try_datagov(
-        limit=max(limit, 100),  # request enough to cover all state-wide results
+        limit=500,               # fetch a full state-wide result page
         commodity=commodity,
         state=scoped_state,
-        district=None,           # no district on the API call
+        district=None,           # no district on the API call; filter client-side
         market_names=market_names,
         api_key=api_key,
     )
     if datagov_result.available and datagov_result.records:
+        # Deduplicate across all returned rows to one per (commodity, market, district).
+        deduped_all = _deduplicate_by_market(datagov_result.records)
         # Client-side filter by district when the caller requested one.
         # If no records match the district, return all state-wide records
         # so the user sees real data rather than a misleading empty result.
-        filtered = _filter_by_district(datagov_result.records, district)
-        result_records = (filtered if filtered else datagov_result.records)[:limit]
+        filtered = _filter_by_district(deduped_all, district)
+        result_records = filtered if filtered else deduped_all
         evaluated = [
             evaluate_record_freshness_and_confidence(rec, source=datagov_result.source or "data.gov.in", is_fallback=False, is_cached=False)
             for rec in result_records
@@ -181,25 +218,32 @@ def fetch_market_prices_with_fallback(
             using_fallback=False,
         )
 
-    # --- 3. DB fallback – only when a specific district or market filter is supplied ---
-    if district or market_names:
-        db_records = query_observations(
-            commodity=commodity,
-            district=district,
-            market=market_names[0] if market_names else None,
-            state=scoped_state,
-        )
-        if db_records:
-            evaluated = [
-                evaluate_record_freshness_and_confidence(rec, source="observations.db", is_fallback=False, is_cached=True)
-                for rec in db_records
-            ]
-            return MarketDataFetchResult(
-                records=evaluated,
-                source="farmprofit-local-fallback",
-                available=True,
-                using_fallback=True,
+    # --- 3. DB cache fallback (state-wide or district-specific) ---
+    db_records = query_observations(
+        commodity=commodity,
+        district=district,
+        market=market_names[0] if market_names else None,
+        state=scoped_state,
+    )
+    if db_records:
+        cached_source = db_records[0].source_provider or "observations.db"
+        evaluated = [
+            evaluate_record_freshness_and_confidence(
+                rec,
+                source=rec.source_provider or cached_source,
+                is_fallback=False,
+                is_cached=True,
             )
+            for rec in db_records
+        ]
+        # Deduplicate to one row per (commodity, market, district) — newest date wins.
+        deduplicated = _deduplicate_by_market(evaluated)
+        return MarketDataFetchResult(
+            records=deduplicated,
+            source=f"cached ({cached_source})",
+            available=True,
+            using_fallback=False,
+        )
 
     # --- 4. Bundled local fallback ---
     fallback_result = fetch_fallback_market_prices(
@@ -221,10 +265,6 @@ def fetch_market_prices_with_fallback(
             fallback_result.error_message = error_result.error_message
         return fallback_result
 
-    live_errors = [
-        message for message in (agmarknet_result.error_message, datagov_result.error_message)
-        if message
-    ]
     live_error_kinds = {agmarknet_result.error_kind, datagov_result.error_kind}
     if live_error_kinds <= {"data", None}:
         return MarketDataFetchResult(
@@ -235,9 +275,27 @@ def fetch_market_prices_with_fallback(
             error_kind="data",
             error_message="No live market records matched the requested filters.",
         )
+
+    # If Agmarknet returned a genuine data message (while datagov failed with config/service), prioritize the data message
+    if agmarknet_result.error_kind == "data" and agmarknet_result.error_message:
+        return MarketDataFetchResult(
+            records=[],
+            source=None,
+            available=False,
+            using_fallback=False,
+            error_kind="data",
+            error_message=agmarknet_result.error_message,
+        )
+
+    live_errors = [
+        message for message in (agmarknet_result.error_message, datagov_result.error_message)
+        if message and "DATA_GOV_API_KEY is not set" not in message
+    ]
+    if not live_errors and (agmarknet_result.error_message or datagov_result.error_message):
+        live_errors = [m for m in (agmarknet_result.error_message, datagov_result.error_message) if m]
+
     if "data" in live_error_kinds and live_errors:
-        # Prefer specific data matching message over secondary API key warning
-        primary_msg = agmarknet_result.error_message or datagov_result.error_message
+        primary_msg = agmarknet_result.error_message if agmarknet_result.error_kind == "data" else (live_errors[0] if live_errors else None)
         return MarketDataFetchResult(
             records=[],
             source=None,
@@ -255,9 +313,10 @@ def fetch_market_prices_with_fallback(
         error_message=(
             "Live market data providers are unavailable."
             if not live_errors
-            else " ".join(live_errors)
+            else ". ".join(live_errors)
         ),
     )
+
 
 
 async def _background_ingestion_loop() -> None:

@@ -154,3 +154,19 @@ class MarketCatalogueResponse(BaseModel):
     price_source: str | None = None
     price_data_available: bool = False
     error: MarketErrorDetails | None = None
+
+
+class CropListResponse(BaseModel):
+    """List of supported crops from the database."""
+
+    crops: list[str] = Field(default_factory=list)
+    count: int = 0
+
+
+class CropVarietiesResponse(BaseModel):
+    """List of varieties associated with a specific crop from the database."""
+
+    crop: str = Field(min_length=1)
+    varieties: list[str] = Field(default_factory=list)
+    count: int = 0
+

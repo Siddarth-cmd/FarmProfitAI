@@ -165,3 +165,65 @@ def query_observations(
         return [_row_to_market_price(row) for row in rows]
     finally:
         conn.close()
+
+
+def get_distinct_crops() -> list[str]:
+    """Return distinct supported crops (commodities) from the observations database."""
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            """
+            SELECT DISTINCT TRIM(commodity)
+            FROM observations
+            WHERE commodity IS NOT NULL
+              AND LENGTH(TRIM(commodity)) > 1
+            ORDER BY TRIM(commodity) COLLATE NOCASE ASC
+            """
+        )
+        seen = set()
+        crops: list[str] = []
+        for (crop,) in cur.fetchall():
+            if not crop:
+                continue
+            cleaned = crop.strip()
+            # Ignore search-token fragments if any exist in the database
+            if cleaned.lower() in ("o", "on", "oni", "onio"):
+                continue
+            if cleaned.lower() not in seen:
+                seen.add(cleaned.lower())
+                crops.append(cleaned)
+        return crops
+    finally:
+        conn.close()
+
+
+def get_varieties_for_crop(crop: str) -> list[str]:
+    """Return distinct recorded varieties associated with the selected crop."""
+    if not crop or not crop.strip():
+        return []
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            """
+            SELECT DISTINCT TRIM(variety)
+            FROM observations
+            WHERE LOWER(TRIM(commodity)) = LOWER(TRIM(?))
+              AND variety IS NOT NULL
+              AND TRIM(variety) != ''
+            ORDER BY TRIM(variety) COLLATE NOCASE ASC
+            """,
+            (crop.strip(),),
+        )
+        seen = set()
+        varieties: list[str] = []
+        for (variety,) in cur.fetchall():
+            if not variety:
+                continue
+            cleaned = variety.strip()
+            if cleaned.lower() not in seen:
+                seen.add(cleaned.lower())
+                varieties.append(cleaned)
+        return varieties
+    finally:
+        conn.close()
+

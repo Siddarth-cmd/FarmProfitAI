@@ -7,9 +7,9 @@ export default function Navbar({ activeTab, setActiveTab, onGetStarted }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const navLinks = [
-    { id: 'home', label: t('navHome') },
-    { id: 'forecast', label: 'AI Forecast' },
-    { id: 'markets', label: t('navMarkets') },
+    { id: 'home',         label: t('navHome') },
+    { id: 'forecast',     label: t('navForecast') || 'AI Forecast' },
+    { id: 'markets',      label: t('navMarkets') },
     { id: 'how-it-works', label: t('navHow') },
   ]
 
@@ -20,113 +20,147 @@ export default function Navbar({ activeTab, setActiveTab, onGetStarted }) {
   }
 
   return (
-    <header className="sticky top-0 z-50 bg-[#FFFDF7]/92 backdrop-blur-md border-b border-[#E4E1D7] transition-all">
+    <header className="sticky top-0 z-50 bg-[#EBF0E6]/95 backdrop-blur-md border-b border-[rgba(94,114,76,0.22)] transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+        <div className="flex items-center justify-between h-18 py-3">
+
           {/* Logo */}
           <div
+            id="nav-logo"
             onClick={() => handleNavClick('home')}
-            className="flex items-center gap-3 cursor-pointer group"
+            className="flex items-center gap-3 cursor-pointer group shrink-0"
           >
-            <div className="w-10 h-10 rounded-xl bg-[#173F2A] flex items-center justify-center text-[#DCE8D5] shadow-sm transition-transform duration-300 group-hover:scale-105">
-              <Sprout className="w-5 h-5 text-[#DCE8D5]" />
+            <div className="w-10 h-10 rounded-xl bg-[#9CAF88] flex items-center justify-center shadow-sm border border-[#7D9870] transition-transform duration-200 group-hover:scale-105">
+              <Sprout className="w-5 h-5 text-[#192616]" />
             </div>
             <div>
-              <span className="font-extrabold text-xl tracking-tight text-[#173F2A] block leading-tight">
-                FarmProfit <span className="text-[#C9A227] font-semibold">AI</span>
+              <span className="font-extrabold text-lg tracking-tight text-[#1D201C] block leading-tight">
+                FarmProfit <span className="text-[#CC5500]">AI</span>
               </span>
-              <span className="text-[10px] uppercase tracking-widest text-[#68736B] font-medium block">
+              <span className="text-[10px] uppercase tracking-widest text-[#4A5742] font-semibold block">
                 {t('tagline')}
               </span>
             </div>
           </div>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-8">
+          {/* Desktop Navigation — four labels with enough gap */}
+          <nav className="hidden md:flex items-center gap-6 lg:gap-8" aria-label="Main navigation">
             {navLinks.map((link) => (
               <button
                 key={link.id}
+                id={`nav-${link.id}`}
                 onClick={() => handleNavClick(link.id)}
-              className={`text-sm font-medium transition-colors py-2 relative cursor-pointer ${
+                className={`text-sm font-semibold transition-colors py-2 relative cursor-pointer whitespace-nowrap focus-visible:outline-2 focus-visible:outline-[#9CAF88] ${
                   activeTab === link.id
-                    ? 'text-[#173F2A] font-semibold'
-                    : 'text-[#68736B] hover:text-[#173F2A]'
+                    ? 'text-[#1D201C]'
+                    : 'text-[#4A5742] hover:text-[#1D201C]'
                 }`}
               >
                 {link.label}
                 {activeTab === link.id && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#173F2A] rounded-full animate-in fade-in duration-200" />
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#9CAF88] rounded-full" />
                 )}
               </button>
             ))}
           </nav>
 
-          {/* CTA Action */}
-          <div className="hidden md:flex items-center gap-4">
-            <div className="flex items-center rounded-full border border-[#E4E1D7] bg-[#F7F3E8] p-1 text-xs font-bold">
-              <button type="button" onClick={() => setLanguage('kn')} className={`rounded-full px-2.5 py-1.5 cursor-pointer ${language === 'kn' ? 'bg-[#173F2A] text-[#FFFDF7]' : 'text-[#68736B]'}`}>ಕನ್ನಡ</button>
-              <button type="button" onClick={() => setLanguage('en')} className={`rounded-full px-2.5 py-1.5 cursor-pointer ${language === 'en' ? 'bg-[#173F2A] text-[#FFFDF7]' : 'text-[#68736B]'}`}>English</button>
+          {/* Language switcher + Get Started CTA */}
+          <div className="hidden md:flex items-center gap-3 shrink-0">
+            {/* Segmented language control */}
+            <div className="flex items-center rounded-full border border-[rgba(94,114,76,0.30)] bg-[#F4F6F1] p-0.5">
+              <button
+                type="button"
+                id="lang-kn"
+                onClick={() => setLanguage('kn')}
+                className={`rounded-full px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                  language === 'kn'
+                    ? 'bg-[#9CAF88] text-[#192616] shadow-sm'
+                    : 'text-[#4A5742] hover:text-[#1D201C]'
+                }`}
+              >
+                ಕನ್ನಡ
+              </button>
+              <button
+                type="button"
+                id="lang-en"
+                onClick={() => setLanguage('en')}
+                className={`rounded-full px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                  language === 'en'
+                    ? 'bg-[#9CAF88] text-[#192616] shadow-sm'
+                    : 'text-[#4A5742] hover:text-[#1D201C]'
+                }`}
+              >
+                EN
+              </button>
             </div>
+
             <button
-              onClick={() => {
-                setActiveTab('home')
-                onGetStarted?.()
-              }}
-              className="px-5 py-2.5 rounded-full text-sm font-semibold text-[#FFFDF7] bg-[#173F2A] hover:bg-[#24543A] active:scale-95 transition-all shadow-sm hover:shadow flex items-center gap-2 cursor-pointer"
+              id="nav-get-started"
+              onClick={() => { setActiveTab('home'); onGetStarted?.() }}
+              className="btn-primary text-sm px-5 py-2.5"
             >
               <span>{t('getStarted')}</span>
-              <ArrowUpRight className="w-4 h-4 text-[#DCE8D5]" />
+              <ArrowUpRight className="w-4 h-4 opacity-80 shrink-0" />
             </button>
           </div>
 
-          {/* Mobile Hamburger Button */}
-          <div className="flex md:hidden">
-            <div className="flex items-center mr-2 rounded-full border border-[#E4E1D7] bg-[#F7F3E8] p-1 text-[10px] font-bold">
-              <button type="button" onClick={() => setLanguage('kn')} className={`rounded-full px-2 py-1 cursor-pointer ${language === 'kn' ? 'bg-[#173F2A] text-[#FFFDF7]' : 'text-[#68736B]'}`}>ಕನ್ನಡ</button>
-              <button type="button" onClick={() => setLanguage('en')} className={`rounded-full px-2 py-1 cursor-pointer ${language === 'en' ? 'bg-[#173F2A] text-[#FFFDF7]' : 'text-[#68736B]'}`}>English</button>
+          {/* Mobile: language + hamburger */}
+          <div className="flex md:hidden items-center gap-2">
+            <div className="flex items-center rounded-full border border-[rgba(94,114,76,0.25)] bg-[#F4F6F1] p-0.5">
+              <button
+                type="button"
+                onClick={() => setLanguage('kn')}
+                className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer ${
+                  language === 'kn' ? 'bg-[#9CAF88] text-[#192616]' : 'text-[#4A5742]'
+                }`}
+              >
+                ಕನ್ನಡ
+              </button>
+              <button
+                type="button"
+                onClick={() => setLanguage('en')}
+                className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer ${
+                  language === 'en' ? 'bg-[#9CAF88] text-[#192616]' : 'text-[#4A5742]'
+                }`}
+              >
+                EN
+              </button>
             </div>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-lg text-[#1E2921] hover:bg-[#EFEADB] transition-colors cursor-pointer"
-            aria-label={t('menuToggle')}
-            aria-expanded={mobileMenuOpen}
+              className="p-2 rounded-xl text-[#1D201C] hover:bg-[#E6EDE0] transition-colors cursor-pointer border border-[rgba(94,114,76,0.22)]"
+              aria-label={t('menuToggle') || 'Toggle menu'}
+              aria-expanded={mobileMenuOpen}
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Drawer */}
+      {/* Mobile drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-b border-[#E4E1D7] bg-[#FFFDF7] px-4 pt-3 pb-6 space-y-3 shadow-lg reveal-soft">
+        <div className="md:hidden border-t border-[rgba(94,114,76,0.18)] bg-[#EBF0E6] px-4 pt-3 pb-6 space-y-1 shadow-md reveal-soft">
           {navLinks.map((link) => (
             <button
               key={link.id}
               onClick={() => handleNavClick(link.id)}
-              className={`block w-full text-left px-4 py-3 rounded-lg text-base font-medium transition-colors ${
+              className={`block w-full text-left px-4 py-3 rounded-xl text-sm font-semibold transition-colors cursor-pointer ${
                 activeTab === link.id
-                  ? 'bg-[#DCE8D5]/50 text-[#173F2A] font-semibold'
-                  : 'text-[#68736B] hover:bg-[#F7F3E8]'
+                  ? 'bg-[#9CAF88]/30 text-[#1D201C]'
+                  : 'text-[#4A5742] hover:bg-[#9CAF88]/15 hover:text-[#1D201C]'
               }`}
             >
               {link.label}
             </button>
           ))}
           <div className="pt-2">
-            <div className="flex items-center justify-center gap-1 mb-3 rounded-full border border-[#E4E1D7] bg-[#F7F3E8] p-1 text-xs font-bold">
-              <button type="button" onClick={() => setLanguage('kn')} className={`rounded-full px-3 py-1.5 cursor-pointer ${language === 'kn' ? 'bg-[#173F2A] text-[#FFFDF7]' : 'text-[#68736B]'}`}>ಕನ್ನಡ</button>
-              <button type="button" onClick={() => setLanguage('en')} className={`rounded-full px-3 py-1.5 cursor-pointer ${language === 'en' ? 'bg-[#173F2A] text-[#FFFDF7]' : 'text-[#68736B]'}`}>English</button>
-            </div>
             <button
-              onClick={() => {
-                handleNavClick('home')
-                setTimeout(() => onGetStarted?.(), 100)
-              }}
-              className="w-full py-3 rounded-xl text-center text-sm font-semibold text-[#FFFDF7] bg-[#173F2A] hover:bg-[#24543A] transition-all shadow flex items-center justify-center gap-2"
+              onClick={() => { setActiveTab('home'); setMobileMenuOpen(false); onGetStarted?.() }}
+              className="btn-primary w-full py-3 text-sm"
             >
               <span>{t('getStarted')}</span>
-              <ArrowUpRight className="w-4 h-4 text-[#DCE8D5]" />
+              <ArrowUpRight className="w-4 h-4 opacity-80 shrink-0" />
             </button>
           </div>
         </div>

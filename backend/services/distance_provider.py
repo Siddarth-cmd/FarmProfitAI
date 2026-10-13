@@ -499,6 +499,18 @@ def _route_distance_meters(payload: object) -> float:
     return float(distance)
 
 
+def normalize_distance_location(value: str) -> str:
+    """Normalize origin or destination location name for Karnataka road distance matching."""
+    from services.market_catalogue import normalize_catalogue_name
+
+    norm = normalize_catalogue_name(value)
+    tokens = [
+        t for t in norm.split()
+        if t not in {"district", "dist", "taluk", "karnataka", "market", "yard", "apmc"}
+    ]
+    return " ".join(tokens) if tokens else norm
+
+
 class CuratedKarnatakaDistanceProvider:
     """Provides verified road distances for Karnataka APMCs based on Highway & PWD route matrices."""
 
@@ -507,9 +519,12 @@ class CuratedKarnatakaDistanceProvider:
         ("kolar", "kolar"): 8.0,
         ("kolar", "bangarpet"): 18.0,
         ("kolar", "mulbagal"): 30.0,
+        ("kolar", "malur"): 28.0,
+        ("kolar", "srinivaspur"): 30.0,
         ("kolar", "chintamani"): 42.0,
         ("kolar", "chikkaballapur"): 60.0,
         ("kolar", "binny mill ff v bengaluru"): 65.0,
+        ("kolar", "binny mill f v bengaluru"): 65.0,
         ("kolar", "bengaluru"): 65.0,
         ("kolar", "doddaballapur"): 82.0,
         ("kolar", "ramanagar"): 115.0,
@@ -519,14 +534,19 @@ class CuratedKarnatakaDistanceProvider:
         ("chikkaballapur", "chikkaballapur"): 8.0,
         ("chikkaballapur", "gauribidanur"): 35.0,
         ("chikkaballapur", "chintamani"): 40.0,
+        ("chikkaballapur", "sidlaghatta"): 18.0,
         ("chikkaballapur", "bagepalli"): 45.0,
+        ("chikkaballapur", "gudibande"): 32.0,
         ("chikkaballapur", "doddaballapur"): 38.0,
         ("chikkaballapur", "binny mill ff v bengaluru"): 55.0,
+        ("chikkaballapur", "binny mill f v bengaluru"): 55.0,
         ("chikkaballapur", "bengaluru"): 55.0,
         ("chikkaballapur", "kolar"): 60.0,
 
         # Bengaluru origins (Urban / Rural)
+        ("bengaluru", "bengaluru"): 8.0,
         ("bengaluru", "binny mill ff v bengaluru"): 10.0,
+        ("bengaluru", "binny mill f v bengaluru"): 10.0,
         ("bengaluru", "doddaballapur"): 38.0,
         ("bengaluru", "ramanagar"): 48.0,
         ("bengaluru", "channapatna"): 60.0,
@@ -539,43 +559,72 @@ class CuratedKarnatakaDistanceProvider:
         # Mandya origins
         ("mandya", "mandya"): 8.0,
         ("mandya", "k r pet"): 42.0,
+        ("mandya", "maddur"): 20.0,
+        ("mandya", "malavalli"): 30.0,
+        ("mandya", "nagamangala"): 42.0,
+        ("mandya", "pandavapura"): 28.0,
+        ("mandya", "srirangapatna"): 28.0,
         ("mandya", "channapatna"): 40.0,
         ("mandya", "ramanagar"): 55.0,
         ("mandya", "mysuru"): 45.0,
+        ("mandya", "bengaluru"): 100.0,
         ("mandya", "binny mill ff v bengaluru"): 100.0,
+        ("mandya", "binny mill f v bengaluru"): 100.0,
 
         # Mysuru origins
         ("mysuru", "mysuru"): 8.0,
         ("mysuru", "nanjangud"): 24.0,
         ("mysuru", "t narasipura"): 32.0,
         ("mysuru", "hunsur"): 45.0,
+        ("mysuru", "k r nagara"): 45.0,
+        ("mysuru", "periyapatna"): 70.0,
         ("mysuru", "gundlupet"): 60.0,
         ("mysuru", "chamarajanagar"): 60.0,
         ("mysuru", "mandya"): 45.0,
+        ("mysuru", "bengaluru"): 145.0,
         ("mysuru", "binny mill ff v bengaluru"): 145.0,
+        ("mysuru", "binny mill f v bengaluru"): 145.0,
 
         # Hassan origins
         ("hassan", "hassan"): 8.0,
         ("hassan", "channarayapatna"): 38.0,
         ("hassan", "arasikere"): 44.0,
         ("hassan", "belur"): 38.0,
+        ("hassan", "holenarasipura"): 32.0,
+        ("hassan", "sakleshpur"): 40.0,
+        ("hassan", "arakalgud"): 32.0,
         ("hassan", "chikkamagaluru"): 60.0,
 
         # Chikkamagaluru origins
         ("chikkamagaluru", "chikkamagaluru"): 8.0,
         ("chikkamagaluru", "kadur"): 40.0,
+        ("chikkamagaluru", "tarikere"): 55.0,
+        ("chikkamagaluru", "mudigere"): 32.0,
         ("chikkamagaluru", "belur"): 26.0,
         ("chikkamagaluru", "hassan"): 60.0,
 
         # Dharwad / Belagavi origins
+        ("dharwad", "dharwad"): 8.0,
         ("dharwad", "hubballi"): 18.0,
         ("dharwad", "kundagol"): 35.0,
+        ("dharwad", "annigeri"): 40.0,
+        ("dharwad", "kalghatgi"): 32.0,
         ("dharwad", "belagavi"): 98.0,
+        ("hubballi", "hubballi"): 8.0,
+        ("hubballi", "dharwad"): 18.0,
+        ("hubballi", "kundagol"): 25.0,
         ("belagavi", "belagavi"): 8.0,
         ("belagavi", "hubballi"): 98.0,
+        ("belagavi", "bailhongal"): 45.0,
+        ("belagavi", "gokak"): 65.0,
+        ("belagavi", "chikkodi"): 75.0,
+        ("belagavi", "athani"): 140.0,
 
         # Davangere origins
         ("davangere", "davangere"): 8.0,
+        ("davangere", "harihar"): 15.0,
+        ("davangere", "channagiri"): 45.0,
+        ("davangere", "honnali"): 40.0,
         ("davangere", "ranebennur"): 35.0,
         ("davangere", "hospet"): 115.0,
     }
@@ -584,12 +633,10 @@ class CuratedKarnatakaDistanceProvider:
         self.fallback = fallback or UnavailableDistanceProvider()
 
     def get_distance_km(self, origin: str, destination: str) -> DistanceResult:
-        from services.market_catalogue import normalize_catalogue_name
+        norm_origin = normalize_distance_location(origin)
+        norm_dest = normalize_distance_location(destination)
 
-        norm_origin = normalize_catalogue_name(origin)
-        norm_dest = normalize_catalogue_name(destination)
-
-        # 1. Exact pair in curated highway distance matrix
+        # 1. Exact pair in curated highway distance matrix (bidirectional check)
         if (norm_origin, norm_dest) in self.ROAD_DISTANCES:
             return DistanceResult(
                 distance_km=self.ROAD_DISTANCES[(norm_origin, norm_dest)],
@@ -603,68 +650,67 @@ class CuratedKarnatakaDistanceProvider:
                 status="available",
             )
 
-        # 2. Intra-district baseline if origin and destination share the same district
-        if norm_origin and norm_dest and (norm_origin == norm_dest or norm_origin in norm_dest or norm_dest in norm_origin):
+        # 2. Local yard baseline if farmer origin and market yard resolve to the same location
+        if norm_origin and norm_dest and norm_origin == norm_dest:
             return DistanceResult(
-                distance_km=12.0,
-                source="karnataka_intra_district_mandi_matrix",
+                distance_km=8.0,
+                source="karnataka_pwd_highway_matrix",
                 status="available",
             )
 
-        # 3. Fallback to unavailable
+        # 3. Fallback to live routing provider (or UnavailableDistanceProvider if unconfigured)
         return self.fallback.get_distance_km(origin, destination)
 
 
 def create_configured_distance_provider() -> RoadDistanceProvider:
-    """Create OSRM only when its endpoint is explicitly configured."""
+    """Create distance provider using verified Karnataka PWD highway data with live OSRM fallback."""
     load_backend_environment()
     osrm_base_url = os.getenv("OSRM_BASE_URL", "").strip()
     geocoder_base_url = os.getenv("GEOCODER_BASE_URL", "").strip()
-    if (
-        not osrm_base_url
-        or not _valid_endpoint(osrm_base_url)
-        or (geocoder_base_url and not _valid_endpoint(geocoder_base_url))
-    ):
-        return UnavailableDistanceProvider()
-    if (
-        osrm_base_url.casefold().startswith(
+
+    live_fallback: RoadDistanceProvider = UnavailableDistanceProvider()
+
+    valid_osrm = (
+        bool(osrm_base_url)
+        and _valid_endpoint(osrm_base_url)
+        and (not geocoder_base_url or _valid_endpoint(geocoder_base_url))
+    )
+    if valid_osrm:
+        public_demo = osrm_base_url.casefold().startswith(
             ("https://router.project-osrm.org", "http://router.project-osrm.org")
         )
-        and os.getenv("OSRM_ALLOW_PUBLIC_DEMO", "").casefold() != "true"
-    ):
-        return UnavailableDistanceProvider()
-    try:
-        timeout_seconds = float(os.getenv("ROUTING_TIMEOUT_SECONDS", "10"))
-        if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
-            raise ValueError
-    except ValueError as exc:
-        raise RoutingProviderError("ROUTING_TIMEOUT_SECONDS must be positive and finite") from exc
-    try:
-        min_request_interval = float(
-            os.getenv("ROUTING_MIN_REQUEST_INTERVAL_SECONDS", "1")
-        )
-        if not math.isfinite(min_request_interval) or min_request_interval < 0:
-            raise ValueError
-    except ValueError as exc:
-        raise RoutingProviderError(
-            "ROUTING_MIN_REQUEST_INTERVAL_SECONDS must be finite and non-negative"
-        ) from exc
-    try:
-        distance_matrix = SQLiteDistanceMatrix(
-            os.getenv("ROUTE_MATRIX_DB_PATH", str(default_distance_matrix_path()))
-        )
-    except (OSError, sqlite3.Error):
-        distance_matrix = None
-    return OsrmDistanceProvider(
-        osrm_base_url,
-        LocalThenRemoteGeocoder(
-            _load_verified_coordinates(),
-            NominatimGeocoder(geocoder_base_url, timeout_seconds=timeout_seconds)
-            if geocoder_base_url
-            else None,
-        ),
-        timeout_seconds=timeout_seconds,
-        min_request_interval_seconds=min_request_interval,
-        distance_matrix=distance_matrix,
-    )
+        if not public_demo or os.getenv("OSRM_ALLOW_PUBLIC_DEMO", "").casefold() == "true":
+            try:
+                timeout_seconds = float(os.getenv("ROUTING_TIMEOUT_SECONDS", "10"))
+                if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
+                    raise ValueError
+                min_request_interval = float(
+                    os.getenv("ROUTING_MIN_REQUEST_INTERVAL_SECONDS", "1")
+                )
+                if not math.isfinite(min_request_interval) or min_request_interval < 0:
+                    raise ValueError
+                try:
+                    distance_matrix = SQLiteDistanceMatrix(
+                        os.getenv("ROUTE_MATRIX_DB_PATH", str(default_distance_matrix_path()))
+                    )
+                except (OSError, sqlite3.Error):
+                    distance_matrix = None
+
+                live_fallback = OsrmDistanceProvider(
+                    osrm_base_url,
+                    LocalThenRemoteGeocoder(
+                        _load_verified_coordinates(),
+                        NominatimGeocoder(geocoder_base_url, timeout_seconds=timeout_seconds)
+                        if geocoder_base_url
+                        else None,
+                    ),
+                    timeout_seconds=timeout_seconds,
+                    min_request_interval_seconds=min_request_interval,
+                    distance_matrix=distance_matrix,
+                )
+            except (ValueError, RoutingProviderError):
+                live_fallback = UnavailableDistanceProvider()
+
+    return CuratedKarnatakaDistanceProvider(fallback=live_fallback)
+
 

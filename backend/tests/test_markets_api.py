@@ -424,3 +424,117 @@ def test_get_markets_state_wide_karnataka(client, monkeypatch):
     assert data["records"][0]["market"] == "Kolar APMC"
     assert data["records"][0]["district"] == "Kolar"
 
+
+from datetime import datetime, timezone
+import db
+
+
+def _seed_test_crops():
+    records = [
+        MarketPrice(
+            commodity="Tomato",
+            variety="Local",
+            state="Karnataka",
+            district="Kolar",
+            market="Kolar APMC",
+            date="2026-10-10",
+            min_price=20.0,
+            modal_price=24.0,
+            max_price=28.0,
+            source_provider="agmarknet.gov.in",
+        ),
+        MarketPrice(
+            commodity="Tomato",
+            variety="Hybrid",
+            state="Karnataka",
+            district="Bengaluru",
+            market="Bengaluru APMC",
+            date="2026-10-10",
+            min_price=22.0,
+            modal_price=25.0,
+            max_price=30.0,
+            source_provider="agmarknet.gov.in",
+        ),
+        MarketPrice(
+            commodity="Onion",
+            variety="Nasik",
+            state="Karnataka",
+            district="Hubballi",
+            market="Hubballi APMC",
+            date="2026-10-10",
+            min_price=18.0,
+            modal_price=20.0,
+            max_price=22.0,
+            source_provider="agmarknet.gov.in",
+        ),
+    ]
+    now = datetime.now(timezone.utc)
+    for r in records:
+        db.upsert_observation(r, retrieved_at=now, provider="agmarknet.gov.in")
+
+
+def test_get_distinct_crops_endpoint(client):
+    """GET /crops returns distinct supported crops from the database catalogue."""
+    _seed_test_crops()
+    response = client.get("/crops")
+    assert response.status_code == 200
+    data = response.json()
+    assert "crops" in data
+    assert "count" in data
+    assert data["count"] == 2
+    assert "Tomato" in data["crops"]
+    assert "Onion" in data["crops"]
+    # Verify no duplicates
+    assert len(data["crops"]) == len(set(data["crops"]))
+
+
+def test_get_crop_varieties_endpoint(client):
+    """GET /crops/{crop}/varieties returns distinct varieties for a supported crop."""
+    _seed_test_crops()
+    response = client.get("/crops/Tomato/varieties")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["crop"] == "Tomato"
+    assert "varieties" in data
+    assert "count" in data
+    assert data["count"] == 2
+    assert set(data["varieties"]) == {"Hybrid", "Local"}
+
+
+def test_get_crop_varieties_case_insensitive(client):
+    """GET /crops/{crop}/varieties matches crop case-insensitively."""
+    _seed_test_crops()
+    response = client.get("/crops/tomato/varieties")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["count"] == 2
+    assert set(data["varieties"]) == {"Hybrid", "Local"}
+
+
+def test_get_crop_varieties_empty_for_unknown(client):
+    """GET /crops/{crop}/varieties gracefully returns empty list for unknown crop."""
+    _seed_test_crops()
+    response = client.get("/crops/NonExistentCropXYZ/varieties")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["crop"] == "NonExistentCropXYZ"
+    assert data["varieties"] == []
+    assert data["count"] == 0
+
+
+def test_actual_db_catalogue(monkeypatch):
+    """Verify that the actual database used by running app contains valid crops and varieties."""
+    if db._DEFAULT_DB_PATH.exists():
+        monkeypatch.setenv("BACKEND_DB_PATH", str(db._DEFAULT_DB_PATH))
+        crops = db.get_distinct_crops()
+        assert len(crops) >= 7
+        assert "Tomato" in crops
+        assert "Onion" in crops
+        assert "Potato" in crops
+        assert "Maize" in crops
+        tomato_varieties = db.get_varieties_for_crop("Tomato")
+        assert len(tomato_varieties) >= 2
+
+
+
+

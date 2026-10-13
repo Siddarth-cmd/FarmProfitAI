@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Wheat,
   Scale,
@@ -10,9 +10,18 @@ import {
   Sparkles,
   ChevronDown,
   RefreshCw,
+  Search,
+  Tag,
+  X,
+  Check,
 } from 'lucide-react'
-import { useLanguage } from '../localization'
-import { fetchMarketCatalogue, fetchMarketFilters } from '../services/api'
+import { useLanguage, getCropDisplayName } from '../localization'
+import {
+  fetchMarketCatalogue,
+  fetchMarketFilters,
+  fetchCrops,
+  fetchCropVarieties,
+} from '../services/api'
 
 const COMMON_CROPS = [
   { name: 'Tomato', label: 'ಟೊಮೇಟೊ' },
@@ -31,6 +40,22 @@ export default function FarmerInput({ onSubmit, isLoading }) {
     { crop: 'Onion', quantity: '200', lossPercentage: '0' },
   ])
   const [crop, setCrop] = useState('Tomato')
+  const [cropOptions, setCropOptions] = useState([])
+  const [cropsLoading, setCropsLoading] = useState(true)
+  const [cropsError, setCropsError] = useState('')
+  const [cropSearch, setCropSearch] = useState('')
+  const [isCropDropdownOpen, setIsCropDropdownOpen] = useState(false)
+
+  const [variety, setVariety] = useState('')
+  const [varietyOptions, setVarietyOptions] = useState([])
+  const [varietiesLoading, setVarietiesLoading] = useState(false)
+  const [varietiesError, setVarietiesError] = useState('')
+  const [varietySearch, setVarietySearch] = useState('')
+  const [isVarietyDropdownOpen, setIsVarietyDropdownOpen] = useState(false)
+
+  const cropDropdownRef = useRef(null)
+  const varietyDropdownRef = useRef(null)
+
   const [quantity, setQuantity] = useState('500')
   const [state, setState] = useState('Karnataka')
   const [district, setDistrict] = useState('')
@@ -50,6 +75,95 @@ export default function FarmerInput({ onSubmit, isLoading }) {
   const [marketSearch, setMarketSearch] = useState('')
   const [visibleMarketCount, setVisibleMarketCount] = useState(10)
   const [formError, setFormError] = useState('')
+
+  // Load database-backed crops
+  const loadCropsList = useCallback(async () => {
+    setCropsLoading(true)
+    setCropsError('')
+    try {
+      const response = await fetchCrops()
+      setCropsLoading(false)
+      if (response && Array.isArray(response.crops) && response.crops.length > 0) {
+        setCropOptions(response.crops)
+      } else {
+        setCropsError(response?.error || t('cropsError'))
+      }
+    } catch (err) {
+      setCropsLoading(false)
+      setCropsError(err?.message || t('cropsError'))
+    }
+  }, [t])
+
+  useEffect(() => {
+    loadCropsList()
+  }, [loadCropsList])
+
+  // Load database-backed varieties when selected crop changes
+  useEffect(() => {
+    let active = true
+    setVariety('')
+    setVarietySearch('')
+    setIsVarietyDropdownOpen(false)
+    if (!crop || !crop.trim()) {
+      setVarietyOptions([])
+      setVarietiesLoading(false)
+      setVarietiesError('')
+      return
+    }
+
+    setVarietiesLoading(true)
+    setVarietiesError('')
+    fetchCropVarieties(crop).then((response) => {
+      if (!active) return
+      setVarietiesLoading(false)
+      if (response && Array.isArray(response.varieties)) {
+        setVarietyOptions(response.varieties)
+      } else {
+        setVarietyOptions([])
+        if (response?.error) setVarietiesError(response.error)
+      }
+    }).catch((err) => {
+      if (!active) return
+      setVarietiesLoading(false)
+      setVarietiesError(err?.message || t('varietiesError'))
+    })
+
+    return () => {
+      active = false
+    }
+  }, [crop, t])
+
+  // Outside click listeners for dropdown menus
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (cropDropdownRef.current && !cropDropdownRef.current.contains(event.target)) {
+        setIsCropDropdownOpen(false)
+      }
+      if (varietyDropdownRef.current && !varietyDropdownRef.current.contains(event.target)) {
+        setIsVarietyDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
+  const filteredCrops = useMemo(() => {
+    const q = cropSearch.trim().toLowerCase()
+    if (!q) return cropOptions
+    return cropOptions.filter((c) => {
+      const nameMatch = c.toLowerCase().includes(q)
+      const knName = getCropDisplayName(c, 'kn').toLowerCase()
+      return nameMatch || knName.includes(q)
+    })
+  }, [cropOptions, cropSearch])
+
+  const filteredVarieties = useMemo(() => {
+    const q = varietySearch.trim().toLowerCase()
+    if (!q) return varietyOptions
+    return varietyOptions.filter((v) => v.toLowerCase().includes(q))
+  }, [varietyOptions, varietySearch])
 
   const loadFilters = useCallback(async () => {
     setFiltersLoading(true)
@@ -283,6 +397,7 @@ export default function FarmerInput({ onSubmit, isLoading }) {
 
     const payload = {
       crop: singleCropName,
+      variety: harvestType === 'single' && variety && variety.trim() ? variety.trim() : undefined,
       quantity_kg: singleCropQty,
       farmer_location: farmerLocation,
       state: state.trim(),
@@ -330,683 +445,899 @@ export default function FarmerInput({ onSubmit, isLoading }) {
   }
 
   return (
-    <section id="farmer-input" className="py-12 md:py-20 relative">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="farmer-input" className="py-12 md:py-20 botanical-bg">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto mb-10 reveal-soft">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#DCE8D5]/60 text-[#173F2A] text-xs font-semibold uppercase tracking-wider mb-3">
-            <Wheat className="w-3.5 h-3.5 text-[#173F2A]" />
+        <div className="text-center max-w-3xl mx-auto mb-10 reveal-soft">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E6EDE0] border border-[#9CAF88]/50 text-[#3A472E] text-xs font-bold uppercase tracking-wider mb-3 shadow-xs">
+            <Wheat className="w-3.5 h-3.5 text-[#5E724C]" />
             <span>{t('calculateProfit')}</span>
           </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-[#173F2A] tracking-tight">
+          <h2 className="text-3xl sm:text-5xl font-extrabold text-[#1D201C] tracking-tight">
             {t('findProfitable')}
           </h2>
-          <p className="mt-3 text-base sm:text-lg text-[#68736B]">
+          <p className="mt-3 text-base sm:text-lg text-[#5C5C5A]">
             {t('tellHarvest')}
           </p>
         </div>
 
         {/* Main Card */}
-        <div className="premium-card rounded-3xl p-6 sm:p-10 relative overflow-hidden transition-all">
-          {/* Subtle top forest line */}
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#173F2A] via-[#6F8F72] to-[#C9A227]" />
+        <div className="panel-sage rounded-3xl p-6 sm:p-10 relative overflow-hidden transition-all border border-[rgba(94,114,76,0.20)] shadow-lg">
+          {/* Subtle Sage Green brand top bar */}
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#9CAF88] via-[#5E724C] to-[#CC5500]" />
 
           {formError && (
-            <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 flex items-start gap-3 animate-in fade-in duration-200">
+            <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-900 flex items-start gap-3 animate-in fade-in duration-200">
               <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-              <p className="text-sm font-medium">{formError}</p>
+              <p className="text-sm font-semibold">{formError}</p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Harvest Type Toggle */}
-            <div className="p-1 rounded-2xl bg-[#F7F3E8] border border-[#E4E1D7] flex max-w-md">
-              <button
-                type="button"
-                onClick={() => setHarvestType('single')}
-                className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                  harvestType === 'single'
-                    ? 'bg-[#173F2A] text-[#FFFDF7] shadow-sm'
-                    : 'text-[#68736B] hover:text-[#173F2A]'
-                }`}
-              >
-                {t('singleCropHarvest')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setHarvestType('multi')}
-                className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                  harvestType === 'multi'
-                    ? 'bg-[#173F2A] text-[#FFFDF7] shadow-sm'
-                    : 'text-[#68736B] hover:text-[#173F2A]'
-                }`}
-              >
-                {t('multiCropHarvest')}
-              </button>
-            </div>
-
-            {/* Field 1: Single Crop or Multi-Crop Manifest */}
-            {harvestType === 'single' ? (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label htmlFor="crop" className="text-sm font-bold text-[#173F2A] uppercase tracking-wider flex items-center gap-2">
-                    <Wheat className="w-4 h-4 text-[#6F8F72]" />
-                    <span>{t('cropCommodity')}</span>
-                  </label>
-                  <span className="text-xs text-[#68736B]">{t('selectOrType')}</span>
-                </div>
-
-                {/* Quick Crop Pills */}
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {COMMON_CROPS.map((item) => (
-                    <button
-                      key={item.name}
-                      type="button"
-                      onClick={() => setCrop(item.name)}
-                      className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-                        crop.toLowerCase() === item.name.toLowerCase()
-                          ? 'bg-[#173F2A] text-[#FFFDF7] shadow-sm scale-102 font-semibold'
-                          : 'bg-[#F7F3E8] text-[#1E2921] hover:bg-[#DCE8D5]/60 border border-[#E4E1D7]'
-                      }`}
-                    >
-                      <span>{language === 'kn' ? item.label : item.name}</span>
-                    </button>
-                  ))}
-                </div>
-
-                <input
-                  id="crop"
-                  type="text"
-                  value={crop}
-                  onChange={(e) => setCrop(e.target.value)}
-                  placeholder={t('cropPlaceholder')}
-                  className="w-full px-4 py-3 rounded-xl bg-[#F7F3E8]/50 border border-[#E4E1D7] focus:bg-[#FFFDF7] focus:border-[#173F2A] focus:ring-2 focus:ring-[#173F2A]/10 text-[#1E2921] text-sm transition-all outline-hidden"
-                />
-              </div>
-            ) : (
-              <div className="rounded-2xl p-4 bg-[#F7F3E8]/60 border border-[#E4E1D7] space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-bold text-[#173F2A] uppercase tracking-wider flex items-center gap-2">
-                    <Wheat className="w-4 h-4 text-[#6F8F72]" />
-                    <span>{t('cropListTitle')}</span>
-                  </h4>
+          <form onSubmit={handleSubmit}>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              
+              {/* Left Column (7 cols): Crop, Quantity, Location & Candidate Markets */}
+              <div className="lg:col-span-7 space-y-7">
+                
+                {/* Harvest Type Toggle */}
+                <div className="p-1 rounded-2xl bg-[#F5F5F3] border border-[#DEDEDA] flex max-w-sm shadow-xs">
                   <button
                     type="button"
-                    onClick={() => setMultiCrops((prev) => [...prev, { crop: '', quantity: '200', lossPercentage: '0' }])}
-                    className="text-xs font-bold text-[#173F2A] hover:underline cursor-pointer"
+                    onClick={() => setHarvestType('single')}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                      harvestType === 'single'
+                        ? 'bg-[#9CAF88] text-[#1D201C] shadow-xs'
+                        : 'text-[#646860] hover:text-[#1D201C]'
+                    }`}
                   >
-                    {t('addCrop')}
+                    {t('singleCropHarvest')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHarvestType('multi')}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                      harvestType === 'multi'
+                        ? 'bg-[#9CAF88] text-[#1D201C] shadow-xs'
+                        : 'text-[#646860] hover:text-[#1D201C]'
+                    }`}
+                  >
+                    {t('multiCropHarvest')}
                   </button>
                 </div>
-                <div className="space-y-2">
-                  {multiCrops.map((cItem, cIdx) => (
-                    <div key={cIdx} className="flex flex-wrap sm:flex-nowrap gap-2 items-center bg-[#FFFDF7] p-2.5 rounded-xl border border-[#E4E1D7]">
-                      <div className="flex-1 min-w-[120px]">
-                        <input
-                          type="text"
-                          value={cItem.crop}
-                          onChange={(e) => {
-                            const updated = [...multiCrops]
-                            updated[cIdx].crop = e.target.value
-                            setMultiCrops(updated)
-                          }}
-                          placeholder="Crop name (e.g. Tomato)"
-                          className="w-full px-3 py-1.5 rounded-lg border border-[#E4E1D7] text-sm text-[#1E2921]"
-                        />
-                      </div>
-                      <div className="w-28 relative">
-                        <input
-                          type="number"
-                          min="1"
-                          value={cItem.quantity}
-                          onChange={(e) => {
-                            const updated = [...multiCrops]
-                            updated[cIdx].quantity = e.target.value
-                            setMultiCrops(updated)
-                          }}
-                          placeholder="Weight"
-                          className="w-full pr-8 pl-2 py-1.5 rounded-lg border border-[#E4E1D7] text-sm text-[#1E2921]"
-                        />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#68736B]">kg</span>
-                      </div>
-                      <div className="w-24 relative">
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={cItem.lossPercentage}
-                          onChange={(e) => {
-                            const updated = [...multiCrops]
-                            updated[cIdx].lossPercentage = e.target.value
-                            setMultiCrops(updated)
-                          }}
-                          placeholder="Loss %"
-                          className="w-full pr-6 pl-2 py-1.5 rounded-lg border border-[#E4E1D7] text-sm text-[#1E2921]"
-                        />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#68736B]">%</span>
-                      </div>
-                      {multiCrops.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => setMultiCrops((prev) => prev.filter((_, idx) => idx !== cIdx))}
-                          className="text-xs text-red-600 hover:text-red-800 px-2 py-1"
-                        >
-                          ✕
-                        </button>
-                      )}
+
+                {/* Field 1: Single Crop and Variety (Database-driven Dropdowns) */}
+                {harvestType === 'single' ? (
+                  <div className="card-concrete p-5 rounded-2xl border border-[#DEDEDA] space-y-4">
+                    {/* Header Row */}
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="crop-select-trigger" className="text-xs font-bold text-[#1D201C] uppercase tracking-wider flex items-center gap-2">
+                        <Wheat className="w-4 h-4 text-[#5E724C]" />
+                        <span>{t('cropCommodity')}</span>
+                      </label>
+                      <span className="text-[11px] text-[#646860] font-medium">{t('selectOrType')}</span>
                     </div>
-                  ))}
-                </div>
-                <p className="text-xs text-[#68736B]">
-                  {t('combinedHarvestQuantity', {
-                    total: multiCrops.reduce((acc, c) => acc + (parseFloat(c.quantity) || 0), 0),
-                  })}
-                </p>
-              </div>
-            )}
 
-            {/* Section 2: State & District */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div>
-                <label htmlFor="state" className="text-sm font-bold text-[#173F2A] uppercase tracking-wider block mb-2">
-                  {t('stateRequired')}
-                </label>
-                <div className="relative">
-                  <select
-                    id="state"
-                    value={state}
-                    onChange={handleStateChange}
-                    disabled={filtersLoading || filterOptions.states.length === 0}
-                    aria-describedby="farmer-filters-status"
-                    className="w-full appearance-none pr-10 px-4 py-3 rounded-xl bg-[#F7F3E8]/50 border border-[#E4E1D7] focus:bg-[#FFFDF7] focus:border-[#173F2A] focus:ring-2 focus:ring-[#173F2A]/10 text-[#1E2921] text-sm outline-hidden disabled:opacity-60"
-                  >
-                    {filterOptions.states.map((option) => (
-                      <option key={option.id} value={option.name}>{option.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#68736B]" />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="district" className="text-sm font-bold text-[#173F2A] uppercase tracking-wider block mb-2">
-                  {t('districtRequired')}
-                </label>
-                <div className="relative">
-                  <input
-                    id="district"
-                    type="text"
-                    list="farmer-district-options"
-                    autoComplete="off"
-                    value={district}
-                    onChange={handleDistrictChange}
-                    placeholder={selectedState ? t('districtPlaceholder') : t('selectStateFirst')}
-                    disabled={!selectedState && filterOptions.states.length > 0}
-                    aria-describedby="farmer-filters-status"
-                    className="w-full appearance-none pr-10 px-4 py-3 rounded-xl bg-[#F7F3E8]/50 border border-[#E4E1D7] focus:bg-[#FFFDF7] focus:border-[#173F2A] focus:ring-2 focus:ring-[#173F2A]/10 text-[#1E2921] text-sm outline-hidden disabled:opacity-60"
-                  />
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#68736B]" />
-                  <datalist id="farmer-district-options">
-                    {districtOptions.map((option) => (
-                      <option key={option.id} value={option.name} />
-                    ))}
-                  </datalist>
-                </div>
-              </div>
-              <div id="farmer-filters-status" className="col-span-full flex items-center gap-2 text-xs text-[#68736B]" aria-live="polite">
-                {filtersLoading && <span>{t('marketFiltersLoading')}</span>}
-                {!filtersLoading && filtersError && (
-                  <>
-                    <span>{t('marketFiltersUnavailable')}</span>
-                    <button
-                      type="button"
-                      onClick={loadFilters}
-                      className="inline-flex items-center gap-1 font-semibold text-[#173F2A] hover:underline"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      {t('retry')}
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Section 3: Quantity */}
-            {harvestType === 'single' && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label htmlFor="quantity" className="text-sm font-bold text-[#173F2A] uppercase tracking-wider flex items-center gap-2">
-                    <Scale className="w-4 h-4 text-[#6F8F72]" />
-                    <span>{t('quantityKg')}</span>
-                  </label>
-                  <span className="text-xs text-[#68736B]">{t('produceWeight')}</span>
-                </div>
-                <div className="relative mb-2">
-                  <input
-                    id="quantity"
-                    type="number"
-                    min="1"
-                    step="any"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    placeholder={t('quantityPlaceholder')}
-                    className="w-full pl-4 pr-12 py-3 rounded-xl bg-[#F7F3E8]/50 border border-[#E4E1D7] focus:bg-[#FFFDF7] focus:border-[#173F2A] focus:ring-2 focus:ring-[#173F2A]/10 text-[#1E2921] font-semibold text-base transition-all outline-hidden"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-[#68736B]">
-                    {t('unitKg')}
-                  </span>
-                </div>
-                {/* Presets */}
-                <div className="flex gap-2">
-                  {QUANTITY_PRESETS.map((q) => (
-                    <button
-                      key={q}
-                      type="button"
-                      onClick={() => setQuantity(String(q))}
-                      className={`flex-1 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
-                        quantity === String(q)
-                          ? 'bg-[#DCE8D5] border-[#6F8F72] text-[#173F2A] font-bold'
-                          : 'bg-[#FFFDF7] border-[#E4E1D7] text-[#68736B] hover:bg-[#F7F3E8]'
-                      }`}
-                    >
-                      {q} {t('unitKg')}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Transport Mode Selection (Feature 1) */}
-            <div className="pt-4 border-t border-[#E4E1D7]">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-bold text-[#173F2A] uppercase tracking-wider flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-[#6F8F72]" />
-                  <span>{t('transportMode')}</span>
-                </label>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                <button
-                  type="button"
-                  onClick={() => setTransportMode('dedicated_vehicle')}
-                  className={`p-3.5 rounded-2xl border text-left transition-all ${
-                    transportMode === 'dedicated_vehicle'
-                      ? 'bg-[#DCE8D5]/60 border-[#173F2A] shadow-xs'
-                      : 'bg-[#FFFDF7] border-[#E4E1D7] hover:bg-[#F7F3E8]'
-                  }`}
-                >
-                  <div className="font-bold text-sm text-[#173F2A] flex items-center gap-2">
-                    <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${transportMode === 'dedicated_vehicle' ? 'border-[#173F2A] bg-[#173F2A]' : 'border-[#AAB7AA]'}`}>
-                      {transportMode === 'dedicated_vehicle' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
-                    </span>
-                    <span>{t('dedicatedVehicle')}</span>
-                  </div>
-                  <p className="text-xs text-[#68736B] mt-1 ml-5.5">
-                    {t('dedicatedVehicleDesc')}
-                  </p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setTransportMode('shared_load')}
-                  className={`p-3.5 rounded-2xl border text-left transition-all ${
-                    transportMode === 'shared_load'
-                      ? 'bg-[#DCE8D5]/60 border-[#173F2A] shadow-xs'
-                      : 'bg-[#FFFDF7] border-[#E4E1D7] hover:bg-[#F7F3E8]'
-                  }`}
-                >
-                  <div className="font-bold text-sm text-[#173F2A] flex items-center gap-2">
-                    <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${transportMode === 'shared_load' ? 'border-[#173F2A] bg-[#173F2A]' : 'border-[#AAB7AA]'}`}>
-                      {transportMode === 'shared_load' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
-                    </span>
-                    <span>{t('sharedLoad')}</span>
-                  </div>
-                  <p className="text-xs text-[#68736B] mt-1 ml-5.5">
-                    {t('sharedLoadDesc')}
-                  </p>
-                </button>
-              </div>
-
-              {/* Shared Rate Configuration */}
-              {transportMode === 'shared_load' && (
-                <div className="p-4 rounded-2xl bg-[#FFFDF7] border border-[#E4E1D7] mb-6 space-y-4">
-                  {/* Pricing Model Basis: Distance-based vs Fixed trip */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#E4E1D7]">
-                    <span className="text-xs font-bold text-[#173F2A] uppercase tracking-wider">
-                      {t('pricingBasis')}
-                    </span>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSharedPricingBasis('distance_based')
-                          if (sharedRateType === 'per_kg') setSharedRateType('per_kg_per_km')
-                        }}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                          sharedPricingBasis === 'distance_based'
-                            ? 'bg-[#173F2A] text-[#FFFDF7] shadow-xs'
-                            : 'bg-[#F7F3E8] text-[#68736B] hover:bg-[#DCE8D5]'
-                        }`}
-                      >
-                        {t('distanceBasedPricing')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSharedPricingBasis('fixed_trip')
-                          if (sharedRateType === 'per_kg_per_km') setSharedRateType('per_kg')
-                        }}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                          sharedPricingBasis === 'fixed_trip'
-                            ? 'bg-[#173F2A] text-[#FFFDF7] shadow-xs'
-                            : 'bg-[#F7F3E8] text-[#68736B] hover:bg-[#DCE8D5]'
-                        }`}
-                      >
-                        {t('fixedTripPricing')}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Unit Selection */}
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-xs font-bold text-[#173F2A] uppercase tracking-wider">
-                      {t('sharedRateType')}
-                    </span>
+                    {/* Quick Crop Pills */}
                     <div className="flex flex-wrap gap-2">
-                      {(sharedPricingBasis === 'distance_based'
-                        ? [
-                            ['per_kg_per_km', t('perKgPerKmRate')],
-                            ['per_crate', t('perCrateRate')],
-                            ['per_bag', t('perBagRate')],
-                          ]
-                        : [
-                            ['per_kg', '₹/kg (Flat)'],
-                            ['per_crate', t('perCrateRate')],
-                            ['per_bag', t('perBagRate')],
-                          ]
-                      ).map(([stKey, stLabel]) => (
+                      {COMMON_CROPS.map((item) => (
                         <button
-                          key={stKey}
+                          key={item.name}
                           type="button"
-                          onClick={() => setSharedRateType(stKey)}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                            sharedRateType === stKey
-                              ? 'bg-[#173F2A] text-[#FFFDF7]'
-                              : 'bg-[#F7F3E8] text-[#68736B] hover:bg-[#DCE8D5]'
+                          onClick={() => {
+                            setCrop(item.name)
+                            setVariety('')
+                            setIsCropDropdownOpen(false)
+                            setCropSearch('')
+                          }}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                            crop.toLowerCase() === item.name.toLowerCase()
+                              ? 'bg-[#9CAF88] text-[#1D201C] shadow-xs border border-[#8EA07A]'
+                              : 'bg-white text-[#1D201C] hover:bg-[#E6EDE0] border border-[#DEDEDA]'
                           }`}
                         >
-                          {stLabel}
+                          <span>{language === 'kn' ? item.label : item.name}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Searchable Crop Dropdown */}
+                    <div className="relative" ref={cropDropdownRef}>
+                      <button
+                        id="crop-select-trigger"
+                        type="button"
+                        onClick={() => setIsCropDropdownOpen((prev) => !prev)}
+                        aria-haspopup="listbox"
+                        aria-expanded={isCropDropdownOpen}
+                        aria-label={t('cropCommodity')}
+                        className="w-full px-4 py-2.5 rounded-xl bg-white border border-[#DEDEDA] hover:border-[#9CAF88] focus:border-[#9CAF88] text-left flex items-center justify-between text-sm transition-all shadow-2xs cursor-pointer"
+                      >
+                        <span className="font-semibold text-[#1D201C]">
+                          {crop ? getCropDisplayName(crop, language) : t('cropSelectPlaceholder')}
+                        </span>
+                        <div className="flex items-center gap-1.5 text-[#646860]">
+                          {cropsLoading ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-[#9CAF88]" />
+                          ) : (
+                            <ChevronDown className={`w-4 h-4 transition-transform ${isCropDropdownOpen ? 'rotate-180' : ''}`} />
+                          )}
+                        </div>
+                      </button>
+
+                      {isCropDropdownOpen && (
+                        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-[#9CAF88]/50 rounded-2xl shadow-xl z-30 p-2 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
+                          {/* Crop Search Input */}
+                          <div className="relative mb-2">
+                            <Search className="w-4 h-4 text-[#A7A7A7] absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="text"
+                              value={cropSearch}
+                              onChange={(e) => setCropSearch(e.target.value)}
+                              placeholder={t('cropSelectPlaceholder')}
+                              className="w-full pl-9 pr-8 py-2 rounded-xl bg-[#F5F5F3] border border-[#DEDEDA] text-sm text-[#1D201C] focus:bg-white focus:border-[#9CAF88] outline-hidden"
+                              autoFocus
+                            />
+                            {cropSearch && (
+                              <button
+                                type="button"
+                                onClick={() => setCropSearch('')}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#A7A7A7] hover:text-[#1D201C]"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Crop Options List */}
+                          <div className="max-h-56 overflow-y-auto space-y-1 pr-1" role="listbox">
+                            {cropsLoading ? (
+                              <div className="p-3 text-center text-xs text-[#646860] flex items-center justify-center gap-2">
+                                <Loader2 className="w-4 h-4 animate-spin text-[#9CAF88]" />
+                                <span>{t('loadingCrops')}</span>
+                              </div>
+                            ) : cropsError ? (
+                              <div className="p-3 text-center text-xs text-red-600">
+                                <p>{cropsError}</p>
+                                <button
+                                  type="button"
+                                  onClick={loadCropsList}
+                                  className="mt-1 text-xs font-bold text-[#CC5500] underline"
+                                >
+                                  {t('retry')}
+                                </button>
+                              </div>
+                            ) : filteredCrops.length === 0 ? (
+                              <div className="p-3 text-center text-xs text-[#646860]">
+                                {t('cropsEmpty')}
+                              </div>
+                            ) : (
+                              filteredCrops.map((c) => {
+                                const isSelected = crop.toLowerCase() === c.toLowerCase()
+                                const displayName = getCropDisplayName(c, language)
+                                return (
+                                  <button
+                                    key={c}
+                                    type="button"
+                                    role="option"
+                                    aria-selected={isSelected}
+                                    onClick={() => {
+                                      setCrop(c)
+                                      setVariety('')
+                                      setIsCropDropdownOpen(false)
+                                      setCropSearch('')
+                                    }}
+                                    className={`w-full px-3 py-2 rounded-xl text-left text-sm flex items-center justify-between transition-colors cursor-pointer ${
+                                      isSelected
+                                        ? 'bg-[#E6EDE0] text-[#1D201C] font-bold'
+                                        : 'hover:bg-[#F5F5F3] text-[#1D201C]'
+                                    }`}
+                                  >
+                                    <span>{displayName}</span>
+                                    {isSelected && <Check className="w-4 h-4 text-[#5E724C]" />}
+                                  </button>
+                                )
+                              })
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Variety Dropdown (Dependent on Crop) */}
+                    <div className="pt-3 border-t border-[#DEDEDA]/60">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label htmlFor="variety-select-trigger" className="text-xs font-bold text-[#1D201C] uppercase tracking-wider flex items-center gap-2">
+                          <Tag className="w-3.5 h-3.5 text-[#5E724C]" />
+                          <span>{t('varietyLabel')}</span>
+                        </label>
+                        <span className="text-[11px] text-[#646860] font-medium">({t('varietyOptional')})</span>
+                      </div>
+
+                      <div className="relative" ref={varietyDropdownRef}>
+                        <button
+                          id="variety-select-trigger"
+                          type="button"
+                          disabled={!crop || varietiesLoading}
+                          onClick={() => setIsVarietyDropdownOpen((prev) => !prev)}
+                          aria-haspopup="listbox"
+                          aria-expanded={isVarietyDropdownOpen}
+                          aria-label={t('varietyLabel')}
+                          className={`w-full px-4 py-2.5 rounded-xl border text-left flex items-center justify-between text-sm transition-all shadow-2xs ${
+                            !crop
+                              ? 'bg-[#EAEAEA] border-[#DEDEDA] text-[#A7A7A7] cursor-not-allowed opacity-70'
+                              : 'bg-white border-[#DEDEDA] hover:border-[#9CAF88] focus:border-[#9CAF88] text-[#1D201C] cursor-pointer'
+                          }`}
+                        >
+                          <span className={`font-semibold ${variety ? 'text-[#1D201C]' : 'text-[#646860]'}`}>
+                            {!crop
+                              ? t('selectCropFirst')
+                              : varietiesLoading
+                                ? t('loadingVarieties')
+                                : variety || t('allVarieties')}
+                          </span>
+                          <div className="flex items-center gap-1.5 text-[#646860]">
+                            {variety && (
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setVariety('')
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.stopPropagation()
+                                    setVariety('')
+                                  }
+                                }}
+                                title={t('clearSelection')}
+                                className="p-0.5 rounded-full hover:bg-[#E6EDE0] text-[#A7A7A7] hover:text-[#1D201C] cursor-pointer"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </span>
+                            )}
+                            {varietiesLoading ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-[#9CAF88]" />
+                            ) : (
+                              <ChevronDown className={`w-4 h-4 transition-transform ${isVarietyDropdownOpen ? 'rotate-180' : ''}`} />
+                            )}
+                          </div>
+                        </button>
+
+                        {isVarietyDropdownOpen && crop && (
+                          <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-[#9CAF88]/50 rounded-2xl shadow-xl z-30 p-2 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
+                            {/* Variety Search Input if large list */}
+                            {varietyOptions.length > 5 && (
+                              <div className="relative mb-2">
+                                <Search className="w-4 h-4 text-[#A7A7A7] absolute left-3 top-1/2 -translate-y-1/2" />
+                                <input
+                                  type="text"
+                                  value={varietySearch}
+                                  onChange={(e) => setVarietySearch(e.target.value)}
+                                  placeholder={t('varietySelectPlaceholder')}
+                                  className="w-full pl-9 pr-8 py-2 rounded-xl bg-[#F5F5F3] border border-[#DEDEDA] text-sm text-[#1D201C] focus:bg-white focus:border-[#9CAF88] outline-hidden"
+                                  autoFocus
+                                />
+                                {varietySearch && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setVarietySearch('')}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#A7A7A7] hover:text-[#1D201C]"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Variety Options List */}
+                            <div className="max-h-56 overflow-y-auto space-y-1 pr-1" role="listbox">
+                              {varietiesLoading ? (
+                                <div className="p-3 text-center text-xs text-[#646860] flex items-center justify-center gap-2">
+                                  <Loader2 className="w-4 h-4 animate-spin text-[#9CAF88]" />
+                                  <span>{t('loadingVarieties')}</span>
+                                </div>
+                              ) : varietiesError ? (
+                                <div className="p-3 text-center text-xs text-red-600">
+                                  {varietiesError}
+                                </div>
+                              ) : varietyOptions.length === 0 ? (
+                                <div className="p-3 text-center text-xs text-[#646860] italic">
+                                  {t('noVarietiesAvailable')}
+                                </div>
+                              ) : (
+                                <>
+                                  {/* All Varieties Option */}
+                                  <button
+                                    type="button"
+                                    role="option"
+                                    aria-selected={!variety}
+                                    onClick={() => {
+                                      setVariety('')
+                                      setIsVarietyDropdownOpen(false)
+                                      setVarietySearch('')
+                                    }}
+                                    className={`w-full px-3 py-2 rounded-xl text-left text-sm flex items-center justify-between transition-colors cursor-pointer ${
+                                      !variety
+                                        ? 'bg-[#E6EDE0] text-[#1D201C] font-bold'
+                                        : 'hover:bg-[#F5F5F3] text-[#646860]'
+                                    }`}
+                                  >
+                                    <span>{t('allVarieties')}</span>
+                                    {!variety && <Check className="w-4 h-4 text-[#5E724C]" />}
+                                  </button>
+
+                                  {filteredVarieties.length === 0 && varietySearch ? (
+                                    <div className="p-3 text-center text-xs text-[#646860]">
+                                      {t('varietiesEmpty')}
+                                    </div>
+                                  ) : (
+                                    filteredVarieties.map((v) => {
+                                      const isSelected = variety === v
+                                      return (
+                                        <button
+                                          key={v}
+                                          type="button"
+                                          role="option"
+                                          aria-selected={isSelected}
+                                          onClick={() => {
+                                            setVariety(v)
+                                            setIsVarietyDropdownOpen(false)
+                                            setVarietySearch('')
+                                          }}
+                                          className={`w-full px-3 py-2 rounded-xl text-left text-sm flex items-center justify-between transition-colors cursor-pointer ${
+                                            isSelected
+                                              ? 'bg-[#E6EDE0] text-[#1D201C] font-bold'
+                                              : 'hover:bg-[#F5F5F3] text-[#1D201C]'
+                                          }`}
+                                        >
+                                          <span className="truncate">{v}</span>
+                                          {isSelected && <Check className="w-4 h-4 text-[#5E724C] shrink-0" />}
+                                        </button>
+                                      )
+                                    })
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl p-5 bg-[#F5F5F3] border border-[#DEDEDA] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-[#1D201C] uppercase tracking-wider flex items-center gap-2">
+                        <Wheat className="w-4 h-4 text-[#5E724C]" />
+                        <span>{t('cropListTitle')}</span>
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => setMultiCrops((prev) => [...prev, { crop: '', quantity: '200', lossPercentage: '0' }])}
+                        className="text-xs font-bold text-[#CC5500] hover:underline cursor-pointer"
+                      >
+                        + {t('addCrop')}
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {multiCrops.map((cItem, cIdx) => (
+                        <div key={cIdx} className="flex flex-wrap sm:flex-nowrap gap-2 items-center bg-white p-2.5 rounded-xl border border-[#DEDEDA] shadow-2xs">
+                          <div className="flex-1 min-w-[120px]">
+                            <input
+                              type="text"
+                              list="multi-crop-datalist"
+                              value={cItem.crop}
+                              onChange={(e) => {
+                                const updated = [...multiCrops]
+                                updated[cIdx].crop = e.target.value
+                                setMultiCrops(updated)
+                              }}
+                              placeholder={t('cropPlaceholder')}
+                              className="w-full px-3 py-1.5 rounded-lg border border-[#DEDEDA] text-sm text-[#1D201C]"
+                            />
+                            <datalist id="multi-crop-datalist">
+                              {cropOptions.map((c) => (
+                                <option key={c} value={c}>
+                                  {getCropDisplayName(c, language)}
+                                </option>
+                              ))}
+                            </datalist>
+                          </div>
+                          <div className="w-28 relative">
+                            <input
+                              type="number"
+                              min="1"
+                              value={cItem.quantity}
+                              onChange={(e) => {
+                                const updated = [...multiCrops]
+                                updated[cIdx].quantity = e.target.value
+                                setMultiCrops(updated)
+                              }}
+                              placeholder={t('produceWeight')}
+                              className="w-full pr-8 pl-2 py-1.5 rounded-lg border border-[#DEDEDA] text-sm text-[#1D201C]"
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#646860]">{t('unitKg')}</span>
+                          </div>
+                          <div className="w-24 relative">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={cItem.lossPercentage}
+                              onChange={(e) => {
+                                const updated = [...multiCrops]
+                                updated[cIdx].lossPercentage = e.target.value
+                                setMultiCrops(updated)
+                              }}
+                              placeholder="Loss %"
+                              className="w-full pr-6 pl-2 py-1.5 rounded-lg border border-[#DEDEDA] text-sm text-[#1D201C]"
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#646860]">%</span>
+                          </div>
+                          {multiCrops.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setMultiCrops((prev) => prev.filter((_, idx) => idx !== cIdx))}
+                              className="text-xs text-red-600 hover:text-red-800 px-2 py-1 cursor-pointer"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-[#646860]">
+                      {t('combinedHarvestQuantity', {
+                        total: multiCrops.reduce((acc, c) => acc + (parseFloat(c.quantity) || 0), 0),
+                      })}
+                    </p>
+                  </div>
+                )}
+
+                {/* Section 2: Quantity in KG */}
+                {harvestType === 'single' && (
+                  <div className="card-concrete p-5 rounded-2xl border border-[#DEDEDA]">
+                    <div className="flex items-center justify-between mb-2">
+                      <label htmlFor="quantity" className="text-xs font-bold text-[#1D201C] uppercase tracking-wider flex items-center gap-2">
+                        <Scale className="w-4 h-4 text-[#5E724C]" />
+                        <span>{t('quantityKg')}</span>
+                      </label>
+                      <span className="text-[11px] text-[#646860]">{t('produceWeight')}</span>
+                    </div>
+                    <div className="relative mb-3">
+                      <input
+                        id="quantity"
+                        type="number"
+                        min="1"
+                        step="any"
+                        value={quantity}
+                        onChange={(e) => setQuantity(e.target.value)}
+                        placeholder={t('quantityPlaceholder')}
+                        className="w-full pl-4 pr-12 py-2.5 rounded-xl bg-white border border-[#DEDEDA] focus:border-[#9CAF88] text-[#1D201C] font-semibold text-base transition-all outline-hidden shadow-2xs"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-[#646860]">
+                        {t('unitKg')}
+                      </span>
+                    </div>
+                    {/* Presets */}
+                    <div className="flex gap-2">
+                      {QUANTITY_PRESETS.map((q) => (
+                        <button
+                          key={q}
+                          type="button"
+                          onClick={() => setQuantity(String(q))}
+                          className={`flex-1 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                            quantity === String(q)
+                              ? 'bg-[#9CAF88] border-[#8EA07A] text-[#1D201C] shadow-2xs'
+                              : 'bg-white border-[#DEDEDA] text-[#646860] hover:bg-[#F5F5F3]'
+                          }`}
+                        >
+                          {q} {t('unitKg')}
                         </button>
                       ))}
                     </div>
                   </div>
+                )}
 
-                  <div className="flex items-center gap-3">
-                    <div className="relative flex-1 max-w-xs">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#68736B]">₹</span>
+                {/* Section 3: State & District */}
+                <div className="card-concrete p-5 rounded-2xl border border-[#DEDEDA]">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="state" className="text-xs font-bold text-[#1D201C] uppercase tracking-wider block mb-1.5">
+                        {t('stateRequired')}
+                      </label>
+                      <div className="relative">
+                        <select
+                          id="state"
+                          value={state}
+                          onChange={handleStateChange}
+                          disabled={filtersLoading || filterOptions.states.length === 0}
+                          aria-describedby="farmer-filters-status"
+                          className="w-full appearance-none pr-10 px-3.5 py-2.5 rounded-xl bg-white border border-[#DEDEDA] focus:border-[#9CAF88] text-[#1D201C] text-sm outline-hidden disabled:opacity-60 shadow-2xs"
+                        >
+                          {filterOptions.states.map((option) => (
+                            <option key={option.id} value={option.name}>{option.name}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#646860]" />
+                      </div>
+                    </div>
+                    <div>
+                      <label htmlFor="district" className="text-xs font-bold text-[#1D201C] uppercase tracking-wider block mb-1.5">
+                        {t('districtRequired')}
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="district"
+                          type="text"
+                          list="farmer-district-options"
+                          autoComplete="off"
+                          value={district}
+                          onChange={handleDistrictChange}
+                          placeholder={selectedState ? t('districtPlaceholder') : t('selectStateFirst')}
+                          disabled={!selectedState && filterOptions.states.length > 0}
+                          aria-describedby="farmer-filters-status"
+                          className="w-full appearance-none pr-10 px-3.5 py-2.5 rounded-xl bg-white border border-[#DEDEDA] focus:border-[#9CAF88] text-[#1D201C] text-sm outline-hidden disabled:opacity-60 shadow-2xs"
+                        />
+                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#646860]" />
+                        <datalist id="farmer-district-options">
+                          {districtOptions.map((option) => (
+                            <option key={option.id} value={option.name} />
+                          ))}
+                        </datalist>
+                      </div>
+                    </div>
+                    <div id="farmer-filters-status" className="col-span-full flex items-center gap-2 text-xs text-[#646860]" aria-live="polite">
+                      {filtersLoading && <span>{t('marketFiltersLoading')}</span>}
+                      {!filtersLoading && filtersError && (
+                        <>
+                          <span>{t('marketFiltersUnavailable')}</span>
+                          <button
+                            type="button"
+                            onClick={loadFilters}
+                            className="inline-flex items-center gap-1 font-semibold text-[#CC5500] hover:underline cursor-pointer"
+                          >
+                            <RefreshCw className="w-3 h-3" />
+                            {t('retry')}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 4: Candidate Mandis & Selection */}
+                <div className="card-concrete p-5 rounded-2xl border border-[#DEDEDA]">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <label className="text-xs font-bold text-[#1D201C] uppercase tracking-wider flex items-center gap-2">
+                      <Truck className="w-4 h-4 text-[#5E724C]" />
+                      <span>{t('candidateMarkets')}</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleAutoSelectTopMarkets}
+                      className="btn-3d-amber px-3 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Sparkles className="w-3 h-3 text-white" />
+                      <span>{t('autoSelectTopMarkets') || '✦ Auto-select top markets'}</span>
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-[#646860] mb-3 leading-relaxed">
+                    {t('transportHelp')}
+                  </p>
+                  <input
+                    type="search"
+                    value={marketSearch}
+                    onChange={(event) => {
+                      setMarketSearch(event.target.value)
+                      setVisibleMarketCount(10)
+                    }}
+                    placeholder={t('marketSearchPlaceholder')}
+                    aria-label={t('marketSearchPlaceholder')}
+                    className="w-full mb-3 px-3.5 py-2 rounded-xl bg-white border border-[#DEDEDA] text-sm text-[#1D201C] outline-hidden focus:border-[#9CAF88] shadow-2xs"
+                  />
+                  <div className="rounded-xl border border-[#DEDEDA] bg-white p-2 space-y-1 max-h-60 overflow-y-auto">
+                    {visibleMarkets.map((market) => {
+                      const selected = markets.some((item) => item.name === market.name)
+                      return (
+                        <button
+                          type="button"
+                          key={market.id}
+                          onClick={() => toggleMarket(market)}
+                          className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors cursor-pointer ${
+                            selected ? 'bg-[#E6EDE0]' : 'hover:bg-[#F5F5F3]'
+                          }`}
+                        >
+                          <span className={`w-4 h-4 rounded border flex items-center justify-center ${selected ? 'bg-[#9CAF88] border-[#8EA07A] text-[#1D201C] font-bold' : 'border-[#A7A7A7]'}`}>
+                            {selected ? '✓' : ''}
+                          </span>
+                          <span className="flex-1">
+                            <span className="font-semibold text-[#1D201C]">{market.name}</span>
+                            <span className="block text-xs text-[#646860]">{market.district}</span>
+                          </span>
+                          <span className="text-[11px] font-medium text-[#646860]">
+                            {market.price_available ? (
+                              <span className="text-[#3A472E] bg-[#E6EDE0] px-1.5 py-0.5 rounded">
+                                {t('priceAvailable')}
+                              </span>
+                            ) : (
+                              <span>{t('priceUnavailable')}</span>
+                            )}
+                          </span>
+                        </button>
+                      )
+                    })}
+                    {!marketsLoading && visibleMarkets.length === 0 && (
+                      <p className="p-3 text-sm text-[#646860]">{t('marketOptionsEmpty')}</p>
+                    )}
+                    {visibleMarketCount < filteredMarkets.length && (
+                      <div className="flex gap-2 pt-1 border-t border-[#DEDEDA]">
+                        <button
+                          type="button"
+                          onClick={() => setVisibleMarketCount((count) => count + 20)}
+                          className="flex-1 py-1.5 text-xs font-semibold text-[#1D201C] hover:bg-[#F5F5F3] rounded-lg transition-colors cursor-pointer"
+                        >
+                          {t('showMoreMarkets')} (+20)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setVisibleMarketCount(filteredMarkets.length)}
+                          className="flex-1 py-1.5 text-xs font-bold text-[#1D201C] hover:bg-[#E6EDE0] rounded-lg transition-colors cursor-pointer"
+                        >
+                          Show All ({filteredMarkets.length})
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <p className="mt-2 text-xs text-[#646860]">
+                    {marketsLoading
+                      ? t('marketOptionsLoading')
+                      : marketsError || (availableMarkets.length === 0 ? t('marketOptionsEmpty') : t('selectedMarketsCount', { count: markets.length }))}
+                  </p>
+
+                  {/* Selected Markets with Transport Quotes */}
+                  <div className="space-y-2 mt-3">
+                    {markets.map((m, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-[#DEDEDA] shadow-2xs"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-[#E6EDE0] text-[#3A472E] font-bold text-xs flex items-center justify-center shrink-0">
+                          {idx + 1}
+                        </div>
+
+                        <div className="flex-1 min-w-[120px]">
+                          <span className="text-sm font-semibold text-[#1D201C] block">
+                            {m.name}
+                          </span>
+                        </div>
+
+                        <div className="w-36 sm:w-44 relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#646860]">
+                            ₹
+                          </span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            value={m.transportCost}
+                            onChange={(e) => handleMarketCostChange(idx, e.target.value)}
+                            aria-label={`${t('transportCost')} — ${m.name}`}
+                            placeholder={t('transportCost')}
+                            className="w-full pl-7 pr-3 py-1.5 rounded-lg bg-[#F5F5F3] border border-[#DEDEDA] text-sm text-[#1D201C] font-medium outline-hidden focus:border-[#9CAF88]"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Right Column (5 cols): Transport Mode, Other Costs & Action Sticky Card */}
+              <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-24">
+                
+                {/* Transport Mode Switcher */}
+                <div className="card-concrete p-5 rounded-2xl border border-[#DEDEDA]">
+                  <label className="text-xs font-bold text-[#1D201C] uppercase tracking-wider flex items-center gap-2 mb-3">
+                    <Truck className="w-4 h-4 text-[#5E724C]" />
+                    <span>{t('transportMode')}</span>
+                  </label>
+
+                  <div className="grid grid-cols-1 gap-2.5 mb-4">
+                    <button
+                      type="button"
+                      onClick={() => setTransportMode('dedicated_vehicle')}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                        transportMode === 'dedicated_vehicle'
+                          ? 'bg-[#E6EDE0] border-[#9CAF88] shadow-xs'
+                          : 'bg-white border-[#DEDEDA] hover:bg-[#F5F5F3]'
+                      }`}
+                    >
+                      <div className="font-bold text-xs text-[#1D201C] flex items-center gap-2">
+                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${transportMode === 'dedicated_vehicle' ? 'border-[#5E724C] bg-[#5E724C]' : 'border-[#A7A7A7]'}`}>
+                          {transportMode === 'dedicated_vehicle' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </span>
+                        <span>{t('dedicatedVehicle')}</span>
+                      </div>
+                      <p className="text-[11px] text-[#646860] mt-1 ml-5.5 leading-snug">
+                        {t('dedicatedVehicleDesc')}
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setTransportMode('shared_load')}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                        transportMode === 'shared_load'
+                          ? 'bg-[#E6EDE0] border-[#9CAF88] shadow-xs'
+                          : 'bg-white border-[#DEDEDA] hover:bg-[#F5F5F3]'
+                      }`}
+                    >
+                      <div className="font-bold text-xs text-[#1D201C] flex items-center gap-2">
+                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${transportMode === 'shared_load' ? 'border-[#5E724C] bg-[#5E724C]' : 'border-[#A7A7A7]'}`}>
+                          {transportMode === 'shared_load' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </span>
+                        <span>{t('sharedLoad')}</span>
+                      </div>
+                      <p className="text-[11px] text-[#646860] mt-1 ml-5.5 leading-snug">
+                        {t('sharedLoadDesc')}
+                      </p>
+                    </button>
+                  </div>
+
+                  {/* Shared Rate Options */}
+                  {transportMode === 'shared_load' && (
+                    <div className="p-3.5 rounded-xl bg-white border border-[#DEDEDA] space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-1 pb-2 border-b border-[#DEDEDA]">
+                        <span className="text-[11px] font-bold text-[#1D201C] uppercase tracking-wider">
+                          {t('pricingBasis')}
+                        </span>
+                        <div className="flex gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSharedPricingBasis('distance_based')
+                              if (sharedRateType === 'per_kg') setSharedRateType('per_kg_per_km')
+                            }}
+                            className={`px-2 py-1 rounded-lg text-xs font-semibold cursor-pointer ${
+                              sharedPricingBasis === 'distance_based'
+                                ? 'bg-[#9CAF88] text-[#1D201C]'
+                                : 'bg-[#F5F5F3] text-[#646860]'
+                            }`}
+                          >
+                            {t('distanceBasedPricing')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSharedPricingBasis('fixed_trip')
+                              if (sharedRateType === 'per_kg_per_km') setSharedRateType('per_kg')
+                            }}
+                            className={`px-2 py-1 rounded-lg text-xs font-semibold cursor-pointer ${
+                              sharedPricingBasis === 'fixed_trip'
+                                ? 'bg-[#9CAF88] text-[#1D201C]'
+                                : 'bg-[#F5F5F3] text-[#646860]'
+                            }`}
+                          >
+                            {t('fixedTripPricing')}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#646860]">₹</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={sharedRate}
+                          onChange={(e) => setSharedRate(e.target.value)}
+                          placeholder="0.03"
+                          className="w-full pl-7 pr-3 py-1.5 rounded-lg bg-[#F5F5F3] border border-[#DEDEDA] text-xs text-[#1D201C]"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Other Costs & Loss Percentage */}
+                <div className="card-concrete p-5 rounded-2xl border border-[#DEDEDA] space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label htmlFor="loss-percentage" className="text-xs font-bold text-[#1D201C] uppercase tracking-wider">
+                        {t('lossPercentage')}
+                      </label>
+                      <span className="text-[11px] text-[#646860]">{t('optional')}</span>
+                    </div>
+                    <div className="relative">
                       <input
+                        id="loss-percentage"
                         type="number"
                         min="0"
+                        max="100"
                         step="any"
-                        value={sharedRate}
-                        onChange={(e) => setSharedRate(e.target.value)}
-                        placeholder={
-                          sharedPricingBasis === 'distance_based'
-                            ? sharedRateType === 'per_kg_per_km' ? '0.03' : sharedRateType === 'per_crate' ? '0.75' : '1.5'
-                            : sharedRateType === 'per_crate' ? '30' : sharedRateType === 'per_bag' ? '50' : '1.5'
-                        }
-                        className="w-full pl-7 pr-3 py-2 rounded-xl bg-[#F7F3E8]/50 border border-[#E4E1D7] text-sm text-[#1E2921]"
+                        value={lossPercentage}
+                        onChange={(e) => setLossPercentage(e.target.value)}
+                        placeholder="0"
+                        className="w-full pr-10 pl-3 py-2 rounded-xl bg-white border border-[#DEDEDA] text-sm text-[#1D201C] outline-hidden focus:border-[#9CAF88]"
                       />
-                    </div>
-                    <span className="text-xs text-[#68736B]">
-                      {sharedPricingBasis === 'distance_based'
-                        ? (sharedRateType === 'per_kg_per_km'
-                          ? t('perKgPerKmRateHelp')
-                          : sharedRateType === 'per_crate'
-                          ? '₹/crate/km — converts to ₹/kg/km ÷ 25'
-                          : '₹/bag/km — converts to ₹/kg/km ÷ 50')
-                        : (sharedRateType === 'per_crate'
-                          ? t('perCrateRateHelp')
-                          : sharedRateType === 'per_bag'
-                          ? t('perBagRateHelp')
-                          : '₹/kg — flat full trip rate')}
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-[#173F2A] bg-[#DCE8D5]/50 border border-[#6F8F72]/30 rounded-xl px-3 py-2 font-medium">
-                    {sharedPricingBasis === 'distance_based'
-                      ? t('sharedPricingDescDistance')
-                      : t('sharedPricingDescFixed')}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Field 4: Markets to compare & optional transportation quotes */}
-            <div className="pt-4 border-t border-[#E4E1D7]">
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                <label className="text-sm font-bold text-[#173F2A] uppercase tracking-wider flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-[#6F8F72]" />
-                  <span>{t('candidateMarkets')}</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={handleAutoSelectTopMarkets}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#DCE8D5] hover:bg-[#c9ddbf] text-[#173F2A] text-xs font-bold transition-all shadow-xs"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-[#C9A227]" />
-                  <span>{t('autoSelectMarkets')}</span>
-                </button>
-              </div>
-
-              <p className="text-xs text-[#68736B] mb-4">
-                {t('transportHelp')}
-              </p>
-              <input
-                type="search"
-                value={marketSearch}
-                onChange={(event) => {
-                  setMarketSearch(event.target.value)
-                  setVisibleMarketCount(10)
-                }}
-                placeholder={t('marketSearchPlaceholder')}
-                aria-label={t('marketSearchPlaceholder')}
-                className="w-full mb-2 px-3 py-2 rounded-xl bg-[#FFFDF7] border border-[#E4E1D7] text-sm text-[#1E2921] outline-hidden focus:border-[#173F2A]"
-              />
-              <div className="rounded-xl border border-[#E4E1D7] bg-[#FFFDF7] p-2 space-y-1">
-                {visibleMarkets.map((market) => {
-                  const selected = markets.some((item) => item.name === market.name)
-                  return (
-                    <button
-                      type="button"
-                      key={market.id}
-                      onClick={() => toggleMarket(market)}
-                      className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-left text-sm ${selected ? 'bg-[#DCE8D5]' : 'hover:bg-[#F7F3E8]'}`}
-                    >
-                      <span className={`w-4 h-4 rounded border flex items-center justify-center ${selected ? 'bg-[#173F2A] border-[#173F2A] text-white' : 'border-[#AAB7AA]'}`}>
-                        {selected ? '✓' : ''}
-                      </span>
-                      <span className="flex-1">
-                        <span className="font-semibold text-[#173F2A]">{market.name}</span>
-                        <span className="block text-xs text-[#68736B]">{market.district}</span>
-                      </span>
-                      <span className="text-[11px] text-[#68736B]">
-                        {market.price_available ? t('priceAvailable') : t('priceUnavailable')}
-                      </span>
-                    </button>
-                  )
-                })}
-                {!marketsLoading && visibleMarkets.length === 0 && (
-                  <p className="p-3 text-sm text-[#68736B]">{t('marketOptionsEmpty')}</p>
-                )}
-                {visibleMarketCount < filteredMarkets.length && (
-                  <div className="flex gap-2 pt-1 border-t border-[#E4E1D7]">
-                    <button
-                      type="button"
-                      onClick={() => setVisibleMarketCount((count) => count + 20)}
-                      className="flex-1 py-2 text-xs font-semibold text-[#173F2A] hover:bg-[#F7F3E8] rounded-lg transition-colors"
-                    >
-                      {t('showMoreMarkets')} (+20)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setVisibleMarketCount(filteredMarkets.length)}
-                      className="flex-1 py-2 text-xs font-bold text-[#173F2A] hover:bg-[#DCE8D5] rounded-lg transition-colors"
-                    >
-                      Show All ({filteredMarkets.length})
-                    </button>
-                  </div>
-                )}
-              </div>
-              <p className="mt-2 text-xs text-[#68736B]">
-                {marketsLoading
-                  ? t('marketOptionsLoading')
-                  : marketsError || (availableMarkets.length === 0 ? t('marketOptionsEmpty') : t('selectedMarketsCount', { count: markets.length }))}
-              </p>
-
-              {/* Current Market List */}
-              <div className="space-y-2 mb-4">
-                {markets.length === 0 && availableMarkets.length > 0 && (
-                  <div className="p-3 rounded-xl bg-[#DCE8D5]/40 border border-[#C9D8C5] text-sm text-[#36543F]">
-                    {t('selectMarketsPrompt')}
-                  </div>
-                )}
-                {markets.map((m, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center gap-3 p-2.5 sm:p-3 rounded-xl bg-[#F7F3E8]/80 border border-[#E4E1D7] transition-all"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-[#DCE8D5]/70 flex items-center justify-center text-[#173F2A] font-bold text-xs shrink-0">
-                      {idx + 1}
-                    </div>
-
-                    <div className="flex-1 min-w-[120px]">
-                      <span className="text-sm font-semibold text-[#173F2A] block">
-                        {m.name}
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#646860]">
+                        %
                       </span>
                     </div>
+                  </div>
 
-                    <div className="w-36 sm:w-44 relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#68736B]">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label htmlFor="other-costs" className="text-xs font-bold text-[#1D201C] uppercase tracking-wider">
+                        {t('otherCosts')}
+                      </label>
+                      <span className="text-[11px] text-[#646860]">{t('optional')}</span>
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#646860]">
                         ₹
                       </span>
                       <input
+                        id="other-costs"
                         type="number"
                         min="0"
                         step="any"
-                        value={m.transportCost}
-                        onChange={(e) => handleMarketCostChange(idx, e.target.value)}
-                        aria-label={`${t('transportCost')} — ${m.name}`}
-                        placeholder={t('transportCost')}
-                        className="w-full pl-7 pr-3 py-1.5 rounded-lg bg-[#FFFDF7] border border-[#E4E1D7] text-sm text-[#1E2921] font-medium outline-hidden focus:border-[#173F2A]"
+                        value={otherCosts}
+                        onChange={(e) => setOtherCosts(e.target.value)}
+                        placeholder="0"
+                        className="w-full pl-7 pr-3 py-2 rounded-xl bg-white border border-[#DEDEDA] text-sm text-[#1D201C] outline-hidden focus:border-[#9CAF88]"
                       />
                     </div>
-
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Other Costs (Optional) */}
-            <div className="pt-2">
-              <div className="flex items-center justify-between mb-1">
-                <label htmlFor="other-costs" className="text-xs font-semibold text-[#68736B] uppercase tracking-wider">
-                  {t('otherCosts')}
-                </label>
-                <span className="text-xs text-[#68736B]">{t('optional')}</span>
-              </div>
-
-              {/* Expected loss estimate (optional) */}
-              <div className="pt-2 border-t border-[#E4E1D7]">
-                <div className="flex items-center justify-between mb-1">
-                  <label htmlFor="loss-percentage" className="text-xs font-semibold text-[#68736B] uppercase tracking-wider">
-                    {t('lossPercentage')}
-                  </label>
-                  <span className="text-xs text-[#68736B]">{t('optional')}</span>
-                </div>
-                <div className="relative max-w-xs">
-                  <input
-                    id="loss-percentage"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="any"
-                    value={lossPercentage}
-                    onChange={(e) => setLossPercentage(e.target.value)}
-                    placeholder={t('lossPlaceholder')}
-                    aria-describedby="loss-help"
-                    className="w-full pr-10 pl-3 py-2 rounded-xl bg-[#F7F3E8]/50 border border-[#E4E1D7] text-sm text-[#1E2921] outline-hidden focus:border-[#173F2A]"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#68736B]">
-                    %
-                  </span>
-                </div>
-                <p id="loss-help" className="mt-1 text-xs text-[#68736B]">
-                  {t('lossPercentageHelp')}
-                </p>
-              </div>
-              <div className="relative max-w-xs">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#68736B]">
-                  ₹
-                </span>
-                <input
-                  id="other-costs"
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={otherCosts}
-                  onChange={(e) => setOtherCosts(e.target.value)}
-                  placeholder="0"
-                  className="w-full pl-7 pr-3 py-2 rounded-xl bg-[#F7F3E8]/50 border border-[#E4E1D7] text-sm text-[#1E2921] outline-hidden focus:border-[#173F2A]"
-                />
-              </div>
-            </div>
-
-            {/* Primary Action Button or Loading Progress */}
-            {isLoading ? (
-              <div className="p-6 rounded-2xl bg-[#173F2A] text-[#FFFDF7] shadow-lg reveal-soft" role="status" aria-live="polite">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <Loader2 className="w-5 h-5 text-[#C9A227] animate-spin" />
-                    <span className="font-bold text-base tracking-wide">
-                      {t('calculating')}
-                    </span>
                   </div>
                 </div>
 
-                <div className="space-y-2.5 text-xs sm:text-sm">
-                  {[
-                    [t('checking'), true],
-                    [t('transportation'), true],
-                    [t('sortedByReturn'), false],
-                    [t('findMarket'), false],
-                  ].map(([stepText, isDone]) => {
-                    return (
-                      <div
-                        key={stepText}
-                        className={`flex items-center gap-3 transition-opacity ${
-                          isDone ? 'text-[#DCE8D5]' : 'text-[#DCE8D5]/60'
-                        }`}
-                      >
-                        {isDone ? (
-                          <CheckCircle2 className="w-4 h-4 text-[#C9A227] shrink-0" />
-                        ) : (
-                          <Circle className="w-4 h-4 text-[#6F8F72] shrink-0" />
-                        )}
-                        <span>{stepText}</span>
-                      </div>
-                    )
-                  })}
-                </div>
+                {/* Primary Action Button & Live Progress */}
+                {isLoading ? (
+                  <div className="p-6 rounded-2xl bg-[#5E724C] text-white shadow-xl reveal-soft" role="status" aria-live="polite">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Loader2 className="w-5 h-5 text-[#CC5500] animate-spin" />
+                      <span className="font-bold text-base tracking-wide">
+                        {t('calculating')}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5 text-xs">
+                      {[
+                        [t('checking'), true],
+                        [t('transportation'), true],
+                        [t('sortedByReturn'), false],
+                        [t('findMarket'), false],
+                      ].map(([stepText, isDone]) => (
+                        <div
+                          key={stepText}
+                          className={`flex items-center gap-2.5 ${isDone ? 'text-white' : 'text-white/60'}`}
+                        >
+                          {isDone ? (
+                            <CheckCircle2 className="w-4 h-4 text-[#9CAF88] shrink-0" />
+                          ) : (
+                            <Circle className="w-4 h-4 text-white/40 shrink-0" />
+                          )}
+                          <span>{stepText}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="submit"
+                    className="w-full btn-3d-amber py-4 px-6 text-base font-bold flex items-center justify-center gap-3 cursor-pointer shadow-xl"
+                  >
+                    <span>🌾 {t('calculate')}</span>
+                    <Sparkles className="w-5 h-5 text-white animate-pulse" />
+                  </button>
+                )}
+
               </div>
-            ) : (
-              <button
-                type="submit"
-                className="w-full py-4 px-6 rounded-2xl text-base sm:text-lg font-bold text-[#FFFDF7] bg-[#173F2A] hover:bg-[#24543A] active:scale-[0.99] transition-all shadow-md hover:shadow-xl flex items-center justify-center gap-3 cursor-pointer group"
-              >
-                <span>🌾 {t('calculate')}</span>
-                <Sparkles className="w-5 h-5 text-[#C9A227] group-hover:rotate-12 transition-transform" />
-              </button>
-            )}
+
+            </div>
           </form>
         </div>
       </div>

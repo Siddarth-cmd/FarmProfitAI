@@ -32,6 +32,7 @@ router = APIRouter(tags=["Recommendation"])
 class CropItem(BaseModel):
     """One commodity item within a multi-commodity harvest."""
     crop: str = Field(min_length=1)
+    variety: str | None = Field(default=None, description="Variety name")
     quantity_kg: float = Field(gt=0)
     loss_percentage: float | None = Field(default=None, ge=0, le=100)
 
@@ -40,6 +41,7 @@ class RecommendationRequest(BaseModel):
     """Farmer selling request for optimal market recommendation."""
 
     crop: str | None = Field(default=None, description="Crop name (for single-crop request)")
+    variety: str | None = Field(default=None, description="Crop variety (for single-crop request)")
     quantity_kg: float | None = Field(default=None, description="Produce quantity in kg")
     crops: list[CropItem] | None = Field(default=None, description="Optional multi-commodity harvest list")
     farmer_location: str = Field(min_length=1, description="Farmer origin location")
@@ -229,6 +231,7 @@ def create_recommendation(request: RecommendationRequest) -> RecommendationRespo
         crops_to_process = [
             CropItem(
                 crop=request.crop,
+                variety=request.variety,
                 quantity_kg=request.quantity_kg,
                 loss_percentage=request.loss_percentage,
             )
@@ -299,6 +302,9 @@ def create_recommendation(request: RecommendationRequest) -> RecommendationRespo
                 using_fallback=using_fallback,
             )
 
+        from services.distance_provider import create_configured_distance_provider
+        dist_provider = create_configured_distance_provider()
+
         result = recommend_market(
             crop=single_crop.crop,
             quantity_kg=single_crop.quantity_kg,
@@ -307,8 +313,10 @@ def create_recommendation(request: RecommendationRequest) -> RecommendationRespo
             transportation_costs=request.transportation_costs,
             other_costs=request.other_costs,
             loss_percentage=single_crop.loss_percentage,
+            distance_provider=dist_provider,
             logistics_config=logistics,
             transportation_cost_basis=request.transportation_cost_basis,
+            variety=single_crop.variety,
         )
         result.market_dates = {
             item.market: item.date

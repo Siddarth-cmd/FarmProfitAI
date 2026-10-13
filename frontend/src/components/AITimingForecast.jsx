@@ -80,20 +80,20 @@ export default function AITimingForecast({
 
   if (loading) {
     return (
-      <div className="bg-[#FFFDF7] rounded-3xl p-8 border border-[#E4E1D7] shadow-sm animate-pulse my-8">
+      <div className="card-botanical rounded-3xl p-8 border border-[rgba(94,114,76,0.20)] shadow-sm animate-pulse my-8">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-8 h-8 rounded-xl bg-[#DCE8D5] flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-[#173F2A] animate-spin" />
+          <div className="w-8 h-8 rounded-xl bg-[#E6EDE0] flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-[#5E724C] animate-spin" />
           </div>
           <div>
-            <div className="h-5 w-48 bg-[#E4E1D7] rounded-md mb-1.5" />
-            <div className="h-3 w-64 bg-[#E4E1D7]/60 rounded-md" />
+            <div className="h-5 w-48 bg-[#D8D8D6] rounded-md mb-1.5" />
+            <div className="h-3 w-64 bg-[#D8D8D6]/60 rounded-md" />
           </div>
         </div>
-        <div className="h-40 bg-[#F7F3E8] rounded-2xl mb-4" />
+        <div className="h-40 bg-[#F4F6F1] rounded-2xl mb-4" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-20 bg-[#F7F3E8] rounded-xl" />
+            <div key={i} className="h-20 bg-[#F4F6F1] rounded-xl" />
           ))}
         </div>
       </div>
@@ -102,25 +102,23 @@ export default function AITimingForecast({
 
   if (error && !timingData) {
     return (
-      <div className="bg-[#FFFDF7] rounded-3xl p-6 sm:p-8 border border-amber-200 shadow-sm my-8">
+      <div className="card-botanical rounded-3xl p-6 sm:p-8 border border-amber-200 shadow-sm my-8">
         <div className="flex items-start gap-4">
           <div className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0">
             <ShieldAlert className="w-5 h-5 text-amber-700" />
           </div>
           <div className="flex-1">
-            <h3 className="font-extrabold text-lg text-amber-900 tracking-tight">Forecast Unavailable</h3>
+            <h3 className="font-extrabold text-lg text-amber-900 tracking-tight">{t('forecastUnavailable')}</h3>
             <p className="text-sm text-amber-800 mt-1">{error}</p>
             <p className="text-xs text-amber-700 mt-3 leading-relaxed">
-              The AI Forecast requires real APMC price observations for <strong>{market}</strong>.
-              These are fetched from Agmarknet when you search in the Market Explorer.
-              If you just searched there, try refreshing below — data may now be cached.
+              {t('forecastNoticeApmc', { market })}
             </p>
             <button
               onClick={loadAIData}
-              className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#173F2A] text-[#FFFDF7] text-sm font-bold hover:bg-[#24543A] transition-colors cursor-pointer"
+              className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#192616] text-white text-sm font-bold hover:bg-[#243620] transition-colors cursor-pointer"
             >
               <RefreshCw className="w-4 h-4" />
-              Retry with Live Data
+              {t('retryLiveData')}
             </button>
           </div>
         </div>
@@ -173,20 +171,20 @@ export default function AITimingForecast({
   const confidenceBandPath = `${upperPath} ${lowerPathReversed} Z`
 
   return (
-    <div className="bg-[#FFFDF7] rounded-3xl p-6 sm:p-8 border border-[#E4E1D7] shadow-sm my-8 transition-all">
+    <div className="card-botanical rounded-3xl p-6 sm:p-8 border border-[rgba(94,114,76,0.20)] shadow-sm my-8 transition-all">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#E4E1D7]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[rgba(94,114,76,0.18)]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-[#173F2A] flex items-center justify-center text-[#DCE8D5] shadow-sm">
-            <Sparkles className="w-5 h-5 text-[#C9A227]" />
+          <div className="w-10 h-10 rounded-2xl bg-[#192616] flex items-center justify-center text-[#E6EDE0] shadow-sm">
+            <Sparkles className="w-5 h-5 text-[#CC5500]" />
           </div>
           <div>
-            <h3 className="font-extrabold text-xl text-[#173F2A] tracking-tight">
+            <h3 className="font-extrabold text-xl text-[#1D201C] tracking-tight">
               AI Market Timing & Price Forecast
             </h3>
-            <p className="text-xs text-[#68736B]">
-              Real-time APMC feed for <span className="font-semibold text-[#173F2A]">{commodity}</span> at{' '}
-              <span className="font-semibold text-[#173F2A]">{market}</span>
+            <p className="text-xs text-[#5C5C5A]">
+              Real-time APMC feed for <span className="font-semibold text-[#1D201C]">{commodity}</span> at{' '}
+              <span className="font-semibold text-[#1D201C]">{market}</span>
             </p>
           </div>
         </div>
@@ -209,7 +207,7 @@ export default function AITimingForecast({
           <button
             onClick={loadAIData}
             title="Refresh with live Agmarknet data"
-            className="p-2 rounded-xl border border-[#E4E1D7] text-[#68736B] hover:text-[#173F2A] hover:bg-[#F7F3E8] transition-colors cursor-pointer"
+            className="p-2 rounded-xl border border-[rgba(94,114,76,0.20)] text-[#5C5C5A] hover:text-[#1D201C] hover:bg-[#E6EDE0] transition-colors cursor-pointer"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -221,7 +219,7 @@ export default function AITimingForecast({
         <div
           className={`mt-6 p-6 rounded-2xl border transition-all ${
             isHold
-              ? 'bg-[#EBF5E9] border-emerald-300 text-[#173F2A]'
+              ? 'bg-[#EBF5E9] border-emerald-300 text-[#1D201C]'
               : 'bg-[#FDF8E8] border-amber-300 text-amber-950'
           }`}
         >
@@ -230,7 +228,7 @@ export default function AITimingForecast({
               <div className="flex items-center gap-2">
                 <span
                   className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase tracking-wider ${
-                    isHold ? 'bg-[#173F2A] text-[#DCE8D5]' : 'bg-[#C9A227] text-white'
+                    isHold ? 'bg-[#192616] text-[#E6EDE0]' : 'bg-[#CC5500] text-white'
                   }`}
                 >
                   Decision: {isHold ? 'HOLD PRODUCE' : 'SELL TODAY'}
@@ -247,9 +245,9 @@ export default function AITimingForecast({
             </div>
 
             {isHold && (
-              <div className="shrink-0 text-left md:text-right bg-white/70 backdrop-blur-sm p-4 rounded-xl border border-emerald-200">
-                <div className="text-[11px] uppercase font-bold text-[#68736B] tracking-wider">
-                  Estimated Net Upside
+              <div className="shrink-0 text-left md:text-right bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-emerald-200">
+                <div className="text-[11px] uppercase font-bold text-[#5C5C5A] tracking-wider">
+                  {t('estimatedNetUpside')}
                 </div>
                 <div className="text-2xl font-black text-emerald-800">
                   +₹{formatINR(timingData.net_gain_amount)}
@@ -267,7 +265,7 @@ export default function AITimingForecast({
       <div className="mt-8">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <h4 className="font-bold text-sm text-[#173F2A]">7-Day Projected Mandi Price Path</h4>
+            <h4 className="font-bold text-sm text-[#1D201C]">{t('projectedPricePathTitle')}</h4>
             {forecastData?.trend_direction && (
               <span
                 className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-md ${
@@ -289,11 +287,11 @@ export default function AITimingForecast({
               </span>
             )}
           </div>
-          <span className="text-[11px] text-[#68736B]">95% Confidence Band shown in green tint</span>
+          <span className="text-[11px] text-[#5C5C5A]">{t('confidenceBandLegend')}</span>
         </div>
 
         {/* SVG Interactive Chart */}
-        <div className="bg-[#F7F3E8] p-4 rounded-2xl border border-[#E4E1D7] overflow-x-auto">
+        <div className="bg-[#F4F6F1] p-4 rounded-2xl border border-[rgba(94,114,76,0.18)] overflow-x-auto">
           <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full h-44 select-none">
             {/* Grid horizontal guidelines */}
             {[0.25, 0.5, 0.75].map((ratio) => {
@@ -305,7 +303,7 @@ export default function AITimingForecast({
                   y1={yVal}
                   x2={chartW - padX}
                   y2={yVal}
-                  stroke="#E4E1D7"
+                  stroke="#D8D8D6"
                   strokeDasharray="4 4"
                   strokeWidth="1"
                 />
@@ -313,13 +311,13 @@ export default function AITimingForecast({
             })}
 
             {/* Confidence Band Area */}
-            <path d={confidenceBandPath} fill="#173F2A" fillOpacity="0.08" />
+            <path d={confidenceBandPath} fill="#5E724C" fillOpacity="0.10" />
 
             {/* Main Predicted Line */}
             <path
               d={linePath}
               fill="none"
-              stroke="#173F2A"
+              stroke="#3A472E"
               strokeWidth="3"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -340,14 +338,14 @@ export default function AITimingForecast({
                   className="cursor-pointer"
                 >
                   {isBest && (
-                    <circle cx={cx} cy={cy} r="10" fill="#C9A227" fillOpacity="0.3" className="animate-ping" />
+                    <circle cx={cx} cy={cy} r="10" fill="#CC5500" fillOpacity="0.3" className="animate-ping" />
                   )}
                   <circle
                     cx={cx}
                     cy={cy}
                     r={isSelected || isBest ? '6' : '4.5'}
-                    fill={isBest ? '#C9A227' : '#173F2A'}
-                    stroke="#FFFDF7"
+                    fill={isBest ? '#CC5500' : '#3A472E'}
+                    stroke="#FFFFFF"
                     strokeWidth="2"
                   />
                   {/* Price Tag Label above point */}
@@ -355,7 +353,7 @@ export default function AITimingForecast({
                     x={cx}
                     y={cy - 10}
                     textAnchor="middle"
-                    className="text-[10px] font-bold fill-[#173F2A]"
+                    className="text-[10px] font-bold fill-[#1D201C]"
                   >
                     ₹{pt.price.toFixed(1)}
                   </text>
@@ -364,7 +362,7 @@ export default function AITimingForecast({
                     x={cx}
                     y={chartH - 6}
                     textAnchor="middle"
-                    className="text-[10px] font-medium fill-[#68736B]"
+                    className="text-[10px] font-medium fill-[#5C5C5A]"
                   >
                     {pt.label}
                   </text>
@@ -379,25 +377,25 @@ export default function AITimingForecast({
       {timingData?.breakdown_by_day && (
         <div className="mt-8">
           <div className="flex items-center justify-between mb-3">
-            <h4 className="font-bold text-sm text-[#173F2A]">
-              Daily Net Profit & Spoilage Breakdown
+            <h4 className="font-bold text-sm text-[#1D201C]">
+              {t('dailyProfitTableTitle')}
             </h4>
-            <span className="text-[11px] text-[#68736B]">Accounts for weight loss & ambient spoilage</span>
+            <span className="text-[11px] text-[#5C5C5A]">{t('spoilageLossNote')}</span>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-[#E4E1D7]">
+          <div className="overflow-x-auto rounded-2xl border border-[rgba(94,114,76,0.18)]">
             <table className="w-full text-left text-xs">
-              <thead className="bg-[#F7F3E8] border-b border-[#E4E1D7] text-[#68736B] uppercase font-semibold tracking-wider">
+              <thead className="bg-[#F4F6F1] border-b border-[rgba(94,114,76,0.18)] text-[#5C5C5A] uppercase font-semibold tracking-wider">
                 <tr>
-                  <th className="py-3 px-3.5">Day</th>
-                  <th className="py-3 px-3.5">Date</th>
-                  <th className="py-3 px-3.5">Expected Price</th>
-                  <th className="py-3 px-3.5">Saleable Qty</th>
-                  <th className="py-3 px-3.5">Expected Net Return</th>
-                  <th className="py-3 px-3.5">Diff vs Now</th>
+                  <th className="py-3 px-3.5">{t('forecastColDay')}</th>
+                  <th className="py-3 px-3.5">{t('date')}</th>
+                  <th className="py-3 px-3.5">{t('forecastColPrice')}</th>
+                  <th className="py-3 px-3.5">{t('forecastColQty')}</th>
+                  <th className="py-3 px-3.5">{t('forecastColNetReturn')}</th>
+                  <th className="py-3 px-3.5">{t('forecastColDiff')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E4E1D7] bg-white">
+              <tbody className="divide-y divide-[rgba(94,114,76,0.18)] bg-white">
                 {timingData.breakdown_by_day.map((row) => {
                   const isOpt = row.day_offset === timingData.optimal_sell_day_offset
                   return (
@@ -405,27 +403,27 @@ export default function AITimingForecast({
                       key={row.day_offset}
                       className={`transition-colors ${
                         isOpt
-                          ? 'bg-[#EBF5E9]/80 font-semibold text-[#173F2A]'
-                          : 'hover:bg-[#F7F3E8]/50 text-[#1E2921]'
+                          ? 'bg-[#EBF5E9]/80 font-semibold text-[#1D201C]'
+                          : 'hover:bg-[#F4F6F1]/50 text-[#1D201C]'
                       }`}
                     >
                       <td className="py-2.5 px-3.5">
                         <div className="flex items-center gap-1.5">
                           {isOpt && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />}
-                          <span>{row.day_offset === 0 ? 'Today' : `+${row.day_offset} Days`}</span>
+                          <span>{row.day_offset === 0 ? t('todayLabel') : t('daysOffsetLabel', { days: row.day_offset })}</span>
                         </div>
                       </td>
-                      <td className="py-2.5 px-3.5 text-[#68736B]">{row.date}</td>
+                      <td className="py-2.5 px-3.5 text-[#5C5C5A]">{row.date}</td>
                       <td className="py-2.5 px-3.5 font-bold">₹{row.expected_price_per_kg.toFixed(2)}/kg</td>
                       <td className="py-2.5 px-3.5">{formatINR(row.effective_quantity_kg)} kg</td>
-                      <td className="py-2.5 px-3.5 font-bold text-[#173F2A]">₹{formatINR(row.expected_net_return)}</td>
+                      <td className="py-2.5 px-3.5 font-bold text-[#1D201C]">₹{formatINR(row.expected_net_return)}</td>
                       <td className="py-2.5 px-3.5 font-bold">
                         {row.net_return_diff_vs_now > 0 ? (
                           <span className="text-emerald-700">+₹{formatINR(row.net_return_diff_vs_now)}</span>
                         ) : row.net_return_diff_vs_now < 0 ? (
                           <span className="text-rose-700">-₹{formatINR(Math.abs(row.net_return_diff_vs_now))}</span>
                         ) : (
-                          <span className="text-[#68736B]">Baseline</span>
+                          <span className="text-[#5C5C5A]">{t('forecastBaseline')}</span>
                         )}
                       </td>
                     </tr>
@@ -438,15 +436,15 @@ export default function AITimingForecast({
       )}
 
       {/* Provenance note */}
-      <div className="mt-6 pt-4 border-t border-[#E4E1D7] flex flex-col sm:flex-row items-center justify-between text-[11px] text-[#68736B] gap-2">
+      <div className="mt-6 pt-4 border-t border-[rgba(94,114,76,0.18)] flex flex-col sm:flex-row items-center justify-between text-[11px] text-[#5C5C5A] gap-2">
         <div className="flex items-center gap-1.5">
-          <Info className="w-3.5 h-3.5 text-[#173F2A]" />
+          <Info className="w-3.5 h-3.5 text-[#5E724C]" />
           <span>
             Anchored on {forecastData?.historical_observations_count || 'live'} APMC observations from{' '}
-            <strong className="text-[#173F2A]">Agmarknet</strong>. No synthetic prices invented.
+            <strong className="text-[#1D201C]">Agmarknet</strong>. No synthetic prices invented.
           </span>
         </div>
-        <span className="font-semibold text-[#173F2A]">
+        <span className="font-semibold text-[#1D201C]">
           Forecast Confidence: {forecastData?.confidence_level || 'MEDIUM'}
         </span>
       </div>

@@ -4,12 +4,15 @@ from fastapi import APIRouter, Header, Query
 from fastapi import HTTPException
 
 from models.market_models import (
+    CropListResponse,
+    CropVarietiesResponse,
     MarketErrorDetails,
     MarketFiltersResponse,
     MarketCatalogueResponse,
     MarketsResponse,
     VerifiedLocationOption,
 )
+from db import get_distinct_crops, get_varieties_for_crop
 from services.agmarknet_client import AgmarknetError, fetch_filter_metadata
 from services.distance_provider import verified_location_options
 from services.market_data_service import fetch_market_prices_with_fallback
@@ -21,6 +24,24 @@ from services.market_catalogue import (
 )
 
 router = APIRouter(tags=["markets"])
+
+
+@router.get("/crops", response_model=CropListResponse)
+def get_crops() -> CropListResponse:
+    """Return distinct supported crops from the database."""
+    crops = get_distinct_crops()
+    return CropListResponse(crops=crops, count=len(crops))
+
+
+@router.get("/crops/{crop}/varieties", response_model=CropVarietiesResponse)
+def get_crop_varieties(crop: str) -> CropVarietiesResponse:
+    """Return distinct varieties associated with the selected crop."""
+    clean_crop = crop.strip()
+    if not clean_crop:
+        raise HTTPException(status_code=400, detail="Crop parameter must not be blank.")
+    varieties = get_varieties_for_crop(clean_crop)
+    return CropVarietiesResponse(crop=clean_crop, varieties=varieties, count=len(varieties))
+
 
 
 @router.get("/market-catalogue", response_model=MarketCatalogueResponse)

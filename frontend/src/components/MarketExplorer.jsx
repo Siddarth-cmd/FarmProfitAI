@@ -154,27 +154,27 @@ export default function MarketExplorer() {
     if (rawSource.includes('fallback') || rawSource.includes('demo')) {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200">
-          Local Fallback
+          {t('sourceLocalFallback')}
         </span>
       )
     }
     if (rawSource.includes('cached') || rawSource.includes('observations.db')) {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-          Verified Cache
+          {t('sourceVerifiedCache')}
         </span>
       )
     }
     if (rawSource.includes('data.gov.in')) {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
-          Data.gov.in
+          {t('sourceDataGov')}
         </span>
       )
     }
     return (
       <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
-        Agmarknet
+        {t('sourceAgmarknet')}
       </span>
     )
   }
@@ -182,17 +182,18 @@ export default function MarketExplorer() {
   const isCachedSource = Boolean(source && source.toLowerCase().includes('cached'))
 
   return (
-    <section className="py-12 md:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 reveal-soft">
+    <section className="py-12 md:py-20 botanical-bg reveal-soft">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       {/* Page Header */}
       <div className="max-w-3xl mb-10">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#DCE8D5]/60 text-[#173F2A] text-xs font-semibold uppercase tracking-wider mb-2">
-          <Database className="w-3.5 h-3.5 text-[#173F2A]" />
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E6EDE0] border border-[#9CAF88]/50 text-[#3A472E] text-xs font-bold uppercase tracking-wider mb-2 shadow-xs">
+          <Database className="w-3.5 h-3.5 text-[#5E724C]" />
           <span>{t('marketExplorerBadge')}</span>
         </div>
-        <h2 className="text-3xl sm:text-5xl font-extrabold text-[#173F2A] tracking-tight">
+        <h2 className="text-3xl sm:text-5xl font-extrabold text-[#1D201C] tracking-tight">
           {t('exploreMarketPrices')}
         </h2>
-        <p className="mt-3 text-base text-[#68736B]">
+        <p className="mt-3 text-base text-[#5C5C5A]">
           {t('marketExplorerDesc')}
         </p>
       </div>
@@ -200,10 +201,10 @@ export default function MarketExplorer() {
       {/* Filter Toolbar */}
       <form
         onSubmit={handleSubmit}
-        className="premium-card p-4 sm:p-6 rounded-3xl mb-8 flex flex-col md:flex-row gap-4 items-stretch md:items-end"
+        className="card-botanical p-5 sm:p-6 rounded-3xl mb-8 flex flex-col md:flex-row gap-4 items-stretch md:items-end border border-[#E2DFD5] shadow-lg"
       >
         <div className="flex-1">
-          <label htmlFor="market-commodity" className="text-xs font-bold uppercase tracking-wider text-[#173F2A] block mb-1.5">
+          <label htmlFor="market-commodity" className="text-xs font-bold uppercase tracking-wider text-[#1D201C] block mb-1.5">
             {t('crop')}
           </label>
           <div className="relative">
@@ -214,7 +215,7 @@ export default function MarketExplorer() {
               onChange={(e) => setCommodity(e.target.value)}
               list="market-commodity-options"
               placeholder={t('cropMarketPlaceholder')}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[#F7F3E8]/50 border border-[#E4E1D7] text-sm text-[#1E2921] focus:bg-[#FFFDF7] focus:border-[#173F2A] outline-hidden"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F5F3] border border-[#DEDEDA] text-sm text-[#1D201C] focus:bg-white focus:border-[#9CAF88] outline-hidden shadow-2xs"
             />
             <datalist id="market-commodity-options">
               {filterOptions.commodities.map((option) => (
@@ -225,7 +226,7 @@ export default function MarketExplorer() {
         </div>
 
         <div className="flex-1">
-          <label htmlFor="market-state" className="text-xs font-bold uppercase tracking-wider text-[#173F2A] block mb-1.5">
+          <label htmlFor="market-state" className="text-xs font-bold uppercase tracking-wider text-[#1D201C] block mb-1.5">
             {t('stateRequired')}
           </label>
           <select
@@ -234,7 +235,7 @@ export default function MarketExplorer() {
             onChange={handleStateChange}
             disabled={filtersLoading || filterOptions.states.length === 0}
             aria-required="true"
-            className="w-full px-3.5 py-2.5 rounded-xl bg-[#F7F3E8]/50 border border-[#E4E1D7] text-sm text-[#1E2921] focus:bg-[#FFFDF7] focus:border-[#173F2A] outline-hidden"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F5F3] border border-[#DEDEDA] text-sm text-[#1D201C] focus:bg-white focus:border-[#9CAF88] outline-hidden shadow-2xs"
           >
             {filterOptions.states.map((option) => (
               <option key={option.id} value={option.name}>{option.name}</option>
@@ -243,15 +244,15 @@ export default function MarketExplorer() {
         </div>
 
         <div className="flex-1">
-          <label htmlFor="market-district" className="text-xs font-bold uppercase tracking-wider text-[#173F2A] block mb-1.5">
-            {t('location')} <span className="text-[#6F8F72] font-normal normal-case tracking-normal">({t('districtSelectPrompt')})</span>
+          <label htmlFor="market-district" className="text-xs font-bold uppercase tracking-wider text-[#1D201C] block mb-1.5">
+            {t('location')} <span className="text-[#5E724C] font-normal normal-case tracking-normal">({t('districtSelectPrompt')})</span>
           </label>
           <select
             id="market-district"
             value={district}
             onChange={(e) => setDistrict(e.target.value)}
             disabled={!selectedState || districtOptions.length === 0}
-            className="w-full px-3.5 py-2.5 rounded-xl bg-[#F7F3E8]/50 border border-[#E4E1D7] text-sm text-[#1E2921] focus:bg-[#FFFDF7] focus:border-[#173F2A] outline-hidden"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F5F3] border border-[#DEDEDA] text-sm text-[#1D201C] focus:bg-white focus:border-[#9CAF88] outline-hidden shadow-2xs"
           >
             <option value="">{t('allDistricts')}</option>
             {districtOptions.map((option) => (
@@ -266,18 +267,18 @@ export default function MarketExplorer() {
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-2.5 rounded-xl bg-[#173F2A] hover:bg-[#24543A] text-[#FFFDF7] text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+            className="btn-3d-amber px-7 py-2.5 text-sm font-bold flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-50"
           >
             {loading ? (
-              <RefreshCw className="w-4 h-4 animate-spin text-[#DCE8D5]" />
+              <RefreshCw className="w-4 h-4 animate-spin text-white" />
             ) : (
-              <Search className="w-4 h-4 text-[#DCE8D5]" />
+              <Search className="w-4 h-4 text-white" />
             )}
             <span>{t('search')}</span>
           </button>
         </div>
         {filtersLoading && (
-          <p className="text-xs text-[#68736B] md:max-w-44">{t('marketFiltersLoading')}</p>
+          <p className="text-xs text-[#646860] md:max-w-44">{t('marketFiltersLoading')}</p>
         )}
       </form>
 
@@ -337,7 +338,7 @@ export default function MarketExplorer() {
           </p>
         </div>
       ) : marketsData.length > 0 ? (
-        <div className="premium-card rounded-3xl overflow-hidden shadow-xs">
+        <div className="card-botanical rounded-3xl overflow-hidden shadow-sm">
           {/* Header Bar */}
           <div className="px-6 py-4 border-b border-[#E4E1D7] bg-[#F7F3E8]/60 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -376,7 +377,7 @@ export default function MarketExplorer() {
           {/* Desktop Table View */}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-sm divide-y divide-[#E4E1D7]">
-              <thead className="bg-[#F7F3E8] text-[#173F2A] text-xs uppercase tracking-wider font-bold">
+              <thead className="bg-[#EBF0E6] text-[#1E3019] text-xs uppercase tracking-wider font-bold">
                 <tr>
                   <th className="px-6 py-3.5">{t('marketMandi')}</th>
                   <th className="px-6 py-3.5">{t('location')}</th>
@@ -387,11 +388,11 @@ export default function MarketExplorer() {
                   <th className="px-6 py-3.5 text-right">{t('priceRange')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E4E1D7] bg-[#FFFDF7]">
+              <tbody className="divide-y divide-[rgba(94,114,76,0.12)] bg-[#FFFFFF]">
                 {marketsData.map((row, idx) => (
                   <tr
                     key={`${row.market}-${row.date}-${idx}`}
-                    className="hover:bg-[#F7F3E8]/60 transition-colors group"
+                    className="hover:bg-[#EBF0E6]/60 transition-colors group"
                   >
                     <td className="px-6 py-4 font-bold text-[#173F2A]">
                       {row.market}
@@ -422,7 +423,7 @@ export default function MarketExplorer() {
                       <span className="text-base font-extrabold text-[#173F2A]">
                         ₹{Number(row.observation_price_per_kg ?? row.modal_price).toFixed(2)}
                       </span>
-                      <span className="text-xs text-[#68736B] block">/ kg</span>
+                      <span className="text-xs text-[#68736B] block">/{t('unitKg')}</span>
                       {row.source_price_value != null && row.source_unit && (
                         <span className="text-[11px] font-mono text-[#68736B] block mt-0.5">
                           ₹{Number(row.source_price_value).toLocaleString()} / {row.source_unit.replace(/^Rs\.\/?/i, '')}
@@ -437,7 +438,7 @@ export default function MarketExplorer() {
                           <span className="font-semibold text-[#1E2921]">
                             ₹{Number(row.min_price).toFixed(2)} – ₹{Number(row.max_price).toFixed(2)}
                           </span>
-                          <span className="block text-[11px]">/ kg</span>
+                          <span className="block text-[11px]">/{t('unitKg')}</span>
                         </div>
                       )}
                     </td>
@@ -499,6 +500,7 @@ export default function MarketExplorer() {
           </div>
         </div>
       ) : null}
+      </div>
     </section>
   )
 }

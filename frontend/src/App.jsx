@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
+import MandiIntelligenceSection from './components/MandiIntelligenceSection'
 import FarmerInput from './components/FarmerInput'
 import RecommendationResult from './components/RecommendationResult'
 import WhatIfSimulator from './components/WhatIfSimulator'
@@ -71,7 +72,7 @@ function FarmProfitApp() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F3E8] text-[#1E2921] flex flex-col font-sans selection:bg-[#DCE8D5] selection:text-[#173F2A]">
+    <div className="min-h-screen botanical-bg text-[#1D201C] flex flex-col font-sans selection:bg-[#9CAF88]/30 selection:text-[#1D201C]">
       {/* Main Navbar */}
       <Navbar
         activeTab={activeTab}
@@ -91,18 +92,22 @@ function FarmProfitApp() {
               }}
             />
 
+            {/* Karnataka Mandi Intelligence Section — Embedded Below the Hero */}
+            <MandiIntelligenceSection
+              onExploreMarkets={() => {
+                setActiveTab('markets')
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+            />
+
             {/* Error banner if recommendation failed */}
             {errorMessage && (
-              <div className="max-w-4xl mx-auto px-4 mb-6">
-                <div className="p-4 sm:p-5 rounded-2xl bg-[#FFFDF7] border border-amber-200 text-amber-900 flex items-start gap-3 shadow-sm">
-                  <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
-                  <div className="flex items-start gap-3">
-                    <div>
-                      <h4 className="font-bold text-sm">{t('marketDataNotice')}</h4>
-                      <p className="text-xs sm:text-sm text-amber-800 mt-0.5">
-                      {localizeBackendText(language, errorMessage)}
-                      </p>
-                    </div>
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+                <div className="p-4 sm:p-5 rounded-2xl bg-[#F4F6F1] border border-[#CC5500]/35 text-[#1D201C] flex items-start gap-3 shadow-sm">
+                  <AlertCircle className="w-5 h-5 text-[#CC5500] shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-bold text-sm text-[#CC5500]">{t('marketDataNotice')}</h4>
+                    <p className="text-xs sm:text-sm text-[#4A5742] mt-0.5">{localizeBackendText(language, errorMessage)}</p>
                   </div>
                 </div>
               </div>

@@ -1,12 +1,14 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Sparkles,
   TrendingUp,
   CheckCircle,
   RotateCcw,
   AlertCircle,
+  Volume2,
+  VolumeX,
 } from 'lucide-react'
-import { localizeBackendText, useLanguage } from '../localization'
+import { localizeBackendText, useLanguage, getCropDisplayName } from '../localization'
 import AITimingForecast from './AITimingForecast'
 
 function formatINR(val) {
@@ -21,9 +23,20 @@ function formatPricePerKg(val) {
 
 export default function RecommendationResult({ data, meta, onReset }) {
   const { language, t } = useLanguage()
+  const [isSpeaking, setIsSpeaking] = useState(false)
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+      }
+    }
+  }, [])
+
   if (!data) return null
   const {
     crop,
+    variety = null,
     quantity_kg,
     farmer_location,
     recommended_market,
@@ -49,28 +62,54 @@ export default function RecommendationResult({ data, meta, onReset }) {
   const advantage =
     bestMarket && runnerUpMarket ? bestMarket.net_return - runnerUpMarket.net_return : 0
 
+  const cropDisplayName = getCropDisplayName(crop, language)
+  const fullCropLabel = variety ? `${cropDisplayName} (${variety})` : cropDisplayName
+
+  const handleToggleVoice = () => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+    if (isSpeaking) {
+      window.speechSynthesis.cancel()
+      setIsSpeaking(false)
+      return
+    }
+
+    const textToSpeak = language === 'kn'
+      ? `${recommended_market} ಮಾರುಕಟ್ಟೆಯನ್ನು ನಿಮ್ಮ ${fullCropLabel} ಬೆಳೆಗೆ ಶಿಫಾರಸು ಮಾಡಲಾಗಿದೆ. ನಿರೀಕ್ಷಿತ ನಿವ್ವಳ ಆದಾಯ ${Math.round(expected_net_return)} ರೂಪಾಯಿಗಳು. ${advantage > 0 ? `ಇದು ಮುಂದಿನ ಮಾರುಕಟ್ಟೆಗಿಂತ ${Math.round(advantage)} ರೂಪಾಯಿ ಹೆಚ್ಚು ಲಾಭ ನೀಡುತ್ತದೆ.` : ''}`
+      : `${recommended_market} is recommended for your ${quantity_kg} kilograms of ${fullCropLabel}. Expected net return is ${Math.round(expected_net_return)} rupees. ${advantage > 0 ? `That is ${Math.round(advantage)} rupees more than next best option.` : ''}`
+
+    const utterance = new SpeechSynthesisUtterance(textToSpeak)
+    utterance.lang = language === 'kn' ? 'kn-IN' : 'en-IN'
+    utterance.rate = 0.95
+    utterance.onend = () => setIsSpeaking(false)
+    utterance.onerror = () => setIsSpeaking(false)
+
+    window.speechSynthesis.cancel()
+    setIsSpeaking(true)
+    window.speechSynthesis.speak(utterance)
+  }
+
   return (
-    <section id="recommendation-result" className="py-12 md:py-20 relative reveal-soft">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="recommendation-result" className="py-12 md:py-20 relative reveal-soft botanical-bg">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto mb-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#DCE8D5]/60 text-[#173F2A] text-xs font-bold uppercase tracking-wider mb-2">
-            <Sparkles className="w-3.5 h-3.5 text-[#C9A227]" />
+        <div className="text-center max-w-3xl mx-auto mb-10">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E6EDE0] border border-[#9CAF88]/50 text-[#3A472E] text-xs font-bold uppercase tracking-wider mb-2 shadow-xs">
+            <Sparkles className="w-3.5 h-3.5 text-[#CC5500]" />
             <span>{t('recommendation')}</span>
           </div>
-          <h2 className="text-3xl sm:text-5xl font-extrabold text-[#173F2A] tracking-tight">
+          <h2 className="text-3xl sm:text-5xl font-extrabold text-[#1D201C] tracking-tight">
             {t('sellAt', { market: recommended_market })}
           </h2>
-          <p className="mt-2 text-base text-[#68736B]">
-            {t('calculatedFor', { quantity: quantity_kg.toLocaleString('en-IN'), crop, location: farmer_location })}
+          <p className="mt-2 text-base text-[#5C5C5A]">
+            {t('calculatedFor', { quantity: quantity_kg.toLocaleString('en-IN'), crop: fullCropLabel, location: farmer_location })}
           </p>
           {meta?.usingFallback && (
-            <p className="mt-3 inline-flex rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-800">
+            <p className="mt-3 inline-flex rounded-full bg-amber-50 border border-amber-300 px-3.5 py-1 text-xs font-semibold text-amber-900 shadow-2xs">
               {t('sourceFallback')} · {t('staleDataWarning')}
             </p>
           )}
           {usesObservation && (
-            <p className={`mt-3 text-xs ${bestMarket.is_stale ? 'font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2' : 'text-[#68736B]'}`}>
+            <p className={`mt-3 text-xs ${bestMarket.is_stale ? 'font-bold text-amber-900 bg-amber-50 border border-amber-300 rounded-xl px-3 py-2' : 'text-[#646860]'}`}>
               {t('observationPriceNote')}
               {bestMarket.is_stale && bestMarketDate
                 ? ` ${t('staleObservationWithDate', { date: bestMarketDate })}`
@@ -79,9 +118,9 @@ export default function RecommendationResult({ data, meta, onReset }) {
           )}
         </div>
 
-        {/* Visually Dominant Dark Forest-Green Hero Card */}
-        <div className="rounded-3xl bg-[#173F2A] text-[#FFFDF7] p-8 sm:p-12 shadow-2xl relative overflow-hidden mb-12 border border-[#24543A]">
-          <svg className="absolute inset-0 w-full h-full text-[#DCE8D5]/10 pointer-events-none" viewBox="0 0 900 420" fill="none" aria-hidden="true">
+        {/* Botanical Sage Green Hero Card */}
+        <div className="rounded-3xl bg-gradient-to-br from-[#3A472E] via-[#5E724C] to-[#3A472E] text-white p-8 sm:p-12 shadow-2xl relative overflow-hidden mb-12 border border-[#8EA07A]/40">
+          <svg className="absolute inset-0 w-full h-full text-white/5 pointer-events-none" viewBox="0 0 900 420" fill="none" aria-hidden="true">
             <path d="M-80 120 C 150 42, 298 210, 510 110 C 668 36, 790 92, 980 40" stroke="currentColor" strokeWidth="1.4" />
             <path d="M-90 292 C 178 220, 334 378, 560 260 C 710 182, 808 254, 980 198" stroke="currentColor" strokeWidth="1.1" strokeDasharray="5 7" />
           </svg>
@@ -89,13 +128,13 @@ export default function RecommendationResult({ data, meta, onReset }) {
           <div className="relative z-10">
             {/* Top Badge */}
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#C9A227]/20 border border-[#C9A227]/40 text-[#F7EFCF] text-xs font-extrabold tracking-wider uppercase">
-                <span className="text-[#C9A227]">✦</span> {t('recommendedMarket')}
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#CC5500] text-white text-xs font-extrabold tracking-wider uppercase shadow-md">
+                <span>✦</span> {t('recommendedMarket')}
               </div>
 
               {advantage > 0 && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#DCE8D5]/20 text-[#DCE8D5] text-xs font-semibold">
-                  <TrendingUp className="w-3.5 h-3.5 text-[#C9A227]" />
+                <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/20 text-white text-xs font-bold backdrop-blur-xs">
+                  <TrendingUp className="w-3.5 h-3.5 text-[#FEDEC7]" />
                   <span>{t('moreThanNext', { amount: formatINR(advantage) })}</span>
                 </div>
               )}
@@ -136,7 +175,7 @@ export default function RecommendationResult({ data, meta, onReset }) {
               </div>
 
               <div className="md:text-right">
-                <span className="text-xs uppercase tracking-widest text-[#C9A227] font-bold block mb-1">
+                <span className="text-xs uppercase tracking-widest text-[#FEDEC7] font-bold block mb-1">
                   {t('expectedNet')}
                 </span>
                 <div className="text-4xl sm:text-6xl font-black text-[#FFFDF7] tracking-tight">
@@ -208,69 +247,96 @@ export default function RecommendationResult({ data, meta, onReset }) {
         )}
 
         {/* Why This Market Recommendation Card */}
-        <div className="premium-card rounded-3xl p-6 sm:p-8 mb-10 border-2 border-[#173F2A]/25 shadow-md bg-[#FFFDF7]">
+        <div className="card-botanical rounded-3xl p-6 sm:p-8 mb-10 border border-[#9CAF88]/60 shadow-lg bg-white relative overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#173F2A] text-[#FFFDF7] text-xs font-bold uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5 text-[#C9A227]" />
-              <span>{t('whyThisMarketTitle')}</span>
+            <div className="flex items-center gap-3">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#9CAF88] text-[#1D201C] text-xs font-bold uppercase tracking-wider shadow-xs">
+                <Sparkles className="w-3.5 h-3.5 text-[#CC5500]" />
+                <span>{t('whyThisMarketTitle')}</span>
+              </div>
+
+              {/* Native Voice Readout Button */}
+              <button
+                type="button"
+                onClick={handleToggleVoice}
+                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer shadow-xs ${
+                  isSpeaking
+                    ? 'bg-[#CC5500] text-white animate-pulse'
+                    : 'bg-[#F5F5F3] hover:bg-[#E6EDE0] text-[#1D201C] border border-[#DEDEDA]'
+                }`}
+                title={isSpeaking ? 'Stop speaking' : 'Listen to recommendation audio'}
+              >
+                {isSpeaking ? (
+                  <>
+                    <VolumeX className="w-3.5 h-3.5 text-white" />
+                    <span>{t('stopVoice') || 'Stop Audio'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Volume2 className="w-3.5 h-3.5 text-[#5E724C]" />
+                    <span>{t('voiceDecisionReadout') || 'Listen to Recommendation'}</span>
+                  </>
+                )}
+              </button>
             </div>
+
             {advantage > 0 && runnerUpMarket && (
-              <span className="text-xs font-extrabold text-[#173F2A] bg-[#DCE8D5] px-3.5 py-1 rounded-full border border-[#173F2A]/20">
+              <span className="text-xs font-extrabold text-[#1D201C] bg-[#E6EDE0] px-3.5 py-1.5 rounded-full border border-[#9CAF88]/50 shadow-2xs">
                 +₹{formatINR(advantage)} {t('moreThanNextRunnerUp')}
               </span>
             )}
           </div>
 
-          <p className="text-base sm:text-lg font-bold text-[#173F2A] leading-relaxed mb-6">
+          <p className="text-base sm:text-lg font-bold text-[#1D201C] leading-relaxed mb-6 font-sans">
             {explanation || t('whyMarket', { market: recommended_market })}
           </p>
 
           {/* 4 Financial Columns */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div className="p-4 rounded-2xl bg-[#F7F3E8] border border-[#E4E1D7]">
-              <span className="text-xs font-bold text-[#68736B] block uppercase tracking-wide">
+            <div className="p-4 rounded-2xl bg-[#F5F5F3] border border-[#DEDEDA] shadow-2xs">
+              <span className="text-xs font-bold text-[#646860] block uppercase tracking-wide">
                 {t('grossRevenue')}
               </span>
-              <div className="text-lg sm:text-2xl font-black text-[#173F2A] mt-1">
+              <div className="text-lg sm:text-2xl font-black text-[#1D201C] mt-1">
                 ₹{formatINR(expected_gross_revenue)}
               </div>
-              <span className="text-[11px] text-[#68736B] font-medium">
+              <span className="text-[11px] text-[#646860] font-medium">
                 ₹{formatPricePerKg(bestMarket?.price_per_kg)}/kg
               </span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#F7F3E8] border border-[#E4E1D7]">
-              <span className="text-xs font-bold text-[#68736B] block uppercase tracking-wide">
+            <div className="p-4 rounded-2xl bg-[#F5F5F3] border border-[#DEDEDA] shadow-2xs">
+              <span className="text-xs font-bold text-[#646860] block uppercase tracking-wide">
                 {t('transportation')}
               </span>
-              <div className="text-lg sm:text-2xl font-black text-red-700 mt-1">
+              <div className="text-lg sm:text-2xl font-black text-[#CC5500] mt-1">
                 -₹{formatINR(transportation_cost)}
               </div>
-              <span className="text-[11px] text-[#68736B] font-medium">
+              <span className="text-[11px] text-[#646860] font-medium">
                 {bestMarket?.transport_cost_basis === 'actual_quote' ? t('actualQuoteUsedShort') : t('estimatedFreight')}
               </span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#F7F3E8] border border-[#E4E1D7]">
-              <span className="text-xs font-bold text-[#68736B] block uppercase tracking-wide">
+            <div className="p-4 rounded-2xl bg-[#F5F5F3] border border-[#DEDEDA] shadow-2xs">
+              <span className="text-xs font-bold text-[#646860] block uppercase tracking-wide">
                 {t('otherCosts') || 'Other Costs'}
               </span>
-              <div className="text-lg sm:text-2xl font-black text-[#68736B] mt-1">
+              <div className="text-lg sm:text-2xl font-black text-[#646860] mt-1">
                 -₹{formatINR(other_costs)}
               </div>
-              <span className="text-[11px] text-[#68736B] font-medium">
+              <span className="text-[11px] text-[#646860] font-medium">
                 {t('mandiCosts')}
               </span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#173F2A] text-[#FFFDF7] border border-[#24543A]">
-              <span className="text-xs font-bold text-[#DCE8D5] block uppercase tracking-wide">
+            <div className="p-4 rounded-2xl bg-[#3A472E] text-white border border-[#5E724C] shadow-sm">
+              <span className="text-xs font-bold text-[#E6EDE0] block uppercase tracking-wide">
                 {t('expectedNet')}
               </span>
-              <div className="text-lg sm:text-2xl font-black text-[#FFFDF7] mt-1">
+              <div className="text-lg sm:text-2xl font-black text-white mt-1">
                 ₹{formatINR(expected_net_return)}
               </div>
-              <span className="text-[11px] text-[#C9A227] font-bold">
+              <span className="text-[11px] text-[#FEDEC7] font-bold">
                 {t('actualProfit')}
               </span>
             </div>
@@ -278,15 +344,15 @@ export default function RecommendationResult({ data, meta, onReset }) {
 
           {/* Direct Alternative Comparison */}
           {runnerUpMarket && (
-            <div className="mt-5 p-4 rounded-2xl bg-[#F7F3E8]/80 border border-[#E4E1D7] flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
-              <div className="flex flex-wrap items-center gap-2 text-[#173F2A]">
+            <div className="mt-5 p-4 rounded-2xl bg-[#F5F5F3] border border-[#DEDEDA] flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
+              <div className="flex flex-wrap items-center gap-2 text-[#1D201C]">
                 <span className="font-extrabold">vs. #2 {runnerUpMarket.name}:</span>
-                <span className="text-[#68736B]">
+                <span className="text-[#646860]">
                   Net return ₹{formatINR(runnerUpMarket.net_return)} (Price: ₹{formatPricePerKg(runnerUpMarket.price_per_kg)}/kg, Freight: ₹{formatINR(runnerUpMarket.transportation_cost)})
                 </span>
               </div>
-              <div className="inline-flex items-center gap-1 font-black text-emerald-800 bg-emerald-100/80 px-2.5 py-1 rounded-lg">
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-700" />
+              <div className="inline-flex items-center gap-1 font-bold text-[#3A472E] bg-[#E6EDE0] px-3 py-1 rounded-xl border border-[#9CAF88]/50 shadow-2xs">
+                <TrendingUp className="w-3.5 h-3.5 text-[#5E724C]" />
                 <span>+₹{formatINR(advantage)} {t('profitAdvantage')}</span>
               </div>
             </div>
@@ -295,35 +361,35 @@ export default function RecommendationResult({ data, meta, onReset }) {
 
         {/* Feature 3: Multi-Commodity Crop-by-Crop Breakdown Table (if multi-crop present) */}
         {bestMarket?.crop_breakdowns?.length > 1 && (
-          <div className="premium-card rounded-3xl p-6 sm:p-8 mb-10">
+          <div className="card-botanical rounded-3xl p-6 sm:p-8 mb-10">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-[#68736B] block">
+                <span className="text-xs font-bold uppercase tracking-wider text-[#4A5742] block">
                   {t('multiCropHarvest')}
                 </span>
-                <h3 className="text-xl font-extrabold text-[#173F2A]">
+                <h3 className="text-xl font-extrabold text-[#1D201C]">
                   {t('cropBreakdownTitle')}
                 </h3>
               </div>
-              <span className="text-xs font-semibold text-[#173F2A] bg-[#DCE8D5] px-3 py-1 rounded-full">
+              <span className="text-xs font-semibold text-[#1D201C] bg-[#E6EDE0] px-3 py-1 rounded-full border border-[#9CAF88]/30">
                 {t('jointFreightNotice')}
               </span>
             </div>
 
-            <div className="divide-y divide-[#E4E1D7] text-sm">
+            <div className="divide-y divide-[rgba(94,114,76,0.18)] text-sm">
               {bestMarket.crop_breakdowns.map((cb, idx) => (
                 <div key={idx} className="py-3 flex flex-wrap items-center justify-between gap-3">
-                  <div className="font-bold text-[#173F2A]">
+                  <div className="font-bold text-[#1D201C]">
                     {cb.crop}
-                    <span className="text-xs text-[#68736B] font-normal block">
+                    <span className="text-xs text-[#5C5C5A] font-normal block">
                       {cb.saleable_quantity_kg} {t('unitKg')} saleable @ ₹{Number(cb.price_per_kg).toFixed(2)}/{t('unitKg')}
                     </span>
                   </div>
                   <div className="text-right">
-                    <span className="font-extrabold text-[#173F2A] text-base">
+                    <span className="font-extrabold text-[#1D201C] text-base">
                       ₹{formatINR(cb.gross_revenue)}
                     </span>
-                    <span className="text-xs text-[#68736B] block">
+                    <span className="text-xs text-[#5C5C5A] block">
                       {t('confidenceLabel') || 'Confidence'}: {cb.confidence_level}
                     </span>
                   </div>
@@ -333,17 +399,17 @@ export default function RecommendationResult({ data, meta, onReset }) {
           </div>
         )}
 
-        <div className="premium-card rounded-3xl p-6 sm:p-8 mb-10">
+        <div className="card-botanical rounded-3xl p-6 sm:p-8 mb-10">
           <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-[#68736B]">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#4A5742]">
                 {t('financialReconciliation')}
               </span>
-              <h3 className="text-2xl font-extrabold text-[#173F2A] mt-1">
+              <h3 className="text-2xl font-extrabold text-[#1D201C] mt-1">
                 {t('realizableBreakdown')}
               </h3>
             </div>
-            <div className="text-right text-xs text-[#68736B]">
+            <div className="text-right text-xs text-[#5C5C5A]">
               <div>{t('dataSource')}: {meta?.source || t('sourceUnavailable')}</div>
               {meta?.usingFallback && (
                 <div className="mt-1 font-semibold text-amber-800">{t('fallbackUsed')}</div>
@@ -353,90 +419,90 @@ export default function RecommendationResult({ data, meta, onReset }) {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
             <div>
-              <span className="text-xs text-[#68736B] block">{t('harvestQuantity')}</span>
-              <strong className="text-[#173F2A]">{quantity_kg} {t('unitKg')}</strong>
+              <span className="text-xs text-[#5C5C5A] block">{t('harvestQuantity')}</span>
+              <strong className="text-[#1D201C]">{quantity_kg} {t('unitKg')}</strong>
             </div>
             <div>
-              <span className="text-xs text-[#68736B] block">{t('estimatedLoss')}</span>
-              <strong className="text-[#173F2A]">{estimated_loss_kg} {t('unitKg')}</strong>
+              <span className="text-xs text-[#5C5C5A] block">{t('estimatedLoss')}</span>
+              <strong className="text-[#1D201C]">{estimated_loss_kg} {t('unitKg')}</strong>
             </div>
             <div>
-              <span className="text-xs text-[#68736B] block">{t('saleableQuantity')}</span>
-              <strong className="text-[#173F2A]">{saleable_quantity_kg} {t('unitKg')}</strong>
+              <span className="text-xs text-[#5C5C5A] block">{t('saleableQuantity')}</span>
+              <strong className="text-[#1D201C]">{saleable_quantity_kg} {t('unitKg')}</strong>
             </div>
             <div>
-              <span className="text-xs text-[#68736B] block">{t('lossPercentage')}</span>
-              <strong className="text-[#173F2A]">
+              <span className="text-xs text-[#5C5C5A] block">{t('lossPercentage')}</span>
+              <strong className="text-[#1D201C]">
                 {losses_provided && loss_percentage !== null ? `${loss_percentage}%` : t('lossOmitted')}
               </strong>
             </div>
           </div>
 
-          <div className="mt-5 p-4 rounded-2xl bg-[#F7F3E8] border border-[#E4E1D7] text-sm text-[#1E2921]">
-            <strong className="text-[#173F2A]">
+          <div className="mt-5 p-4 rounded-2xl bg-[#F4F6F1] border border-[rgba(94,114,76,0.18)] text-sm text-[#1D201C]">
+            <strong className="text-[#3A472E]">
               {losses_provided ? t('lossProvided') : t('lossOmitted')}
             </strong>
-            <p className="mt-1 text-[#68736B]">
+            <p className="mt-1 text-[#5C5C5A]">
               {t('lossDataSharedAcrossMarkets')}
             </p>
           </div>
         </div>
 
         {/* "Why [Market]?" Explanation Card */}
-        <div className="premium-card rounded-3xl p-6 sm:p-10 mb-10">
+        <div className="card-botanical rounded-3xl p-6 sm:p-10 mb-10">
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#68736B]">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#4A5742]">
               {t('decisionExplanation')}
             </span>
           </div>
 
-          <h3 className="text-2xl sm:text-3xl font-extrabold text-[#173F2A] mb-4">
+          <h3 className="text-2xl sm:text-3xl font-extrabold text-[#1D201C] mb-4">
             {t('whyMarket', { market: recommended_market })}
           </h3>
 
-          <p className="text-base sm:text-lg text-[#1E2921] leading-relaxed mb-8 bg-[#F7F3E8] p-4 sm:p-6 rounded-2xl border border-[#E4E1D7]">
+          <p className="text-base sm:text-lg text-[#1D201C] leading-relaxed mb-8 bg-[#F4F6F1] p-4 sm:p-6 rounded-2xl border border-[rgba(94,114,76,0.18)]">
             {localizeBackendText(language, explanation)}
           </p>
 
           {/* Visual Side-by-Side Comparison if alternative exists */}
           {runnerUpMarket && (
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-[#68736B] mb-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[#4A5742] mb-4">
                 {t('sideComparison')}
               </h4>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Winning Market Column */}
-                <div className="p-5 rounded-2xl bg-[#DCE8D5]/45 border-2 border-[#173F2A] relative lift-card">
-                  <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-[#173F2A] text-[#FFFDF7] text-[10px] font-bold uppercase tracking-wide">
+                <div className="p-5 rounded-2xl bg-[#E6EDE0] border-2 border-[#5E724C] relative card-botanical-lift">
+                  <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-[#192616] text-white text-[10px] font-bold uppercase tracking-wide">
                     {t('winner')}
                   </div>
-                  <div className="font-extrabold text-xl text-[#173F2A] mb-3">
+                  <div className="font-extrabold text-xl text-[#1D201C] mb-3">
                     {bestMarket.name}
                   </div>
 
                   <div className="space-y-2 text-sm">
-                    <div className="flex justify-between py-1 border-b border-[#6F8F72]/20">
-                      <span className="text-[#68736B]">{bestMarket.price_type === 'market_price_lastweek_observation' ? t('observedPrice') : t('marketPrice')}</span>
-                      <span className="font-semibold text-[#1E2921]">
+                    <div className="flex justify-between py-1 border-b border-[#9CAF88]/30">
+                      <span className="text-[#5C5C5A]">{bestMarket.price_type === 'market_price_lastweek_observation' ? t('observedPrice') : t('marketPrice')}</span>
+                      <span className="font-semibold text-[#1D201C]">
                         ₹{formatPricePerKg(bestMarket.price_per_kg)}/{t('unitKg')}
                       </span>
                     </div>
-                    <div className="flex justify-between py-1 border-b border-[#6F8F72]/20">
-                      <span className="text-[#68736B]">{t('transportation')}</span>
-                      <span className="font-semibold text-emerald-800">
+                    <div className="flex justify-between py-1 border-b border-[#9CAF88]/30">
+                      <span className="text-[#5C5C5A]">{t('transportation')}</span>
+                      <span className="font-semibold text-[#CC5500]">
                         ₹{formatINR(bestMarket.transportation_cost)}
                       </span>
                     </div>
-                    <div className="flex justify-between py-1 border-b border-[#6F8F72]/20">
-                      <span className="text-[#68736B]">{t('grossRevenue')}</span>
-                      <span className="font-semibold text-[#1E2921]">
+                    <div className="flex justify-between py-1 border-b border-[#9CAF88]/30">
+                      <span className="text-[#5C5C5A]">{t('grossRevenue')}</span>
+                      <span className="font-semibold text-[#1D201C]">
                         ₹{formatINR(bestMarket.gross_revenue)}
                       </span>
                     </div>
                     <div className="flex justify-between pt-2">
-                      <span className="font-bold text-[#173F2A]">{t('netReturn')}</span>
-                      <span className="font-extrabold text-lg text-[#173F2A]">
+                      <span className="font-bold text-[#1D201C]">{t('netReturn')}</span>
+                      <span className="font-extrabold text-lg text-[#1D201C]">
                         ₹{formatINR(bestMarket.net_return)}
                       </span>
                     </div>
@@ -444,33 +510,33 @@ export default function RecommendationResult({ data, meta, onReset }) {
                 </div>
 
                 {/* Runner-up Market Column */}
-                <div className="p-5 rounded-2xl bg-[#FFFDF7] border border-[#E4E1D7] lift-card">
-                  <div className="font-extrabold text-xl text-[#68736B] mb-3">
+                <div className="p-5 rounded-2xl bg-[#FFFFFF] border border-[rgba(94,114,76,0.22)] card-botanical-lift">
+                  <div className="font-extrabold text-xl text-[#5C5C5A] mb-3">
                     {runnerUpMarket.name}
                   </div>
 
                   <div className="space-y-2 text-sm">
-                    <div className="flex justify-between py-1 border-b border-[#E4E1D7]">
-                      <span className="text-[#68736B]">{runnerUpMarket.price_type === 'market_price_lastweek_observation' ? t('observedPrice') : t('marketPrice')}</span>
-                      <span className="font-semibold text-[#1E2921]">
+                    <div className="flex justify-between py-1 border-b border-[rgba(94,114,76,0.18)]">
+                      <span className="text-[#5C5C5A]">{runnerUpMarket.price_type === 'market_price_lastweek_observation' ? t('observedPrice') : t('marketPrice')}</span>
+                      <span className="font-semibold text-[#1D201C]">
                         ₹{formatPricePerKg(runnerUpMarket.price_per_kg)}/{t('unitKg')}
                       </span>
                     </div>
-                    <div className="flex justify-between py-1 border-b border-[#E4E1D7]">
-                      <span className="text-[#68736B]">{t('transportation')}</span>
-                      <span className="font-semibold text-[#68736B]">
+                    <div className="flex justify-between py-1 border-b border-[rgba(94,114,76,0.18)]">
+                      <span className="text-[#5C5C5A]">{t('transportation')}</span>
+                      <span className="font-semibold text-[#5C5C5A]">
                         ₹{formatINR(runnerUpMarket.transportation_cost)}
                       </span>
                     </div>
-                    <div className="flex justify-between py-1 border-b border-[#E4E1D7]">
-                      <span className="text-[#68736B]">{t('grossRevenue')}</span>
-                      <span className="font-semibold text-[#1E2921]">
+                    <div className="flex justify-between py-1 border-b border-[rgba(94,114,76,0.18)]">
+                      <span className="text-[#5C5C5A]">{t('grossRevenue')}</span>
+                      <span className="font-semibold text-[#1D201C]">
                         ₹{formatINR(runnerUpMarket.gross_revenue)}
                       </span>
                     </div>
                     <div className="flex justify-between pt-2">
-                      <span className="font-bold text-[#68736B]">{t('netReturn')}</span>
-                      <span className="font-extrabold text-lg text-[#68736B]">
+                      <span className="font-bold text-[#5C5C5A]">{t('netReturn')}</span>
+                      <span className="font-extrabold text-lg text-[#5C5C5A]">
                         ₹{formatINR(runnerUpMarket.net_return)}
                       </span>
                     </div>
@@ -480,14 +546,14 @@ export default function RecommendationResult({ data, meta, onReset }) {
 
               {/* Highlight callout */}
               {advantage > 0 && (
-                <div className="mt-5 p-4 rounded-xl bg-[#DCE8D5]/60 border border-[#6F8F72]/30 flex items-center justify-between gap-4">
+                <div className="mt-5 p-4 rounded-xl bg-[#E6EDE0] border border-[#9CAF88]/40 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <CheckCircle className="w-5 h-5 text-[#173F2A] shrink-0" />
-                    <span className="text-sm font-bold text-[#173F2A]">
+                    <CheckCircle className="w-5 h-5 text-[#3A472E] shrink-0" />
+                    <span className="text-sm font-bold text-[#1D201C]">
                       {t('youEarnMore', { amount: formatINR(advantage), market: recommended_market })}
                     </span>
                   </div>
-                  <span className="text-xs font-semibold uppercase tracking-wider text-[#173F2A] shrink-0">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[#3A472E] shrink-0">
                     {t('netProfitAdvantage')}
                   </span>
                 </div>
@@ -506,88 +572,88 @@ export default function RecommendationResult({ data, meta, onReset }) {
         />
 
         {/* Profit Breakdown Card */}
-        <div className="premium-card rounded-3xl p-6 sm:p-10 mb-10">
+        <div className="card-botanical rounded-3xl p-6 sm:p-10 mb-10">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-[#68736B] block">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#4A5742] block">
                 {t('financialReconciliation')}
               </span>
-              <h3 className="text-2xl font-extrabold text-[#173F2A] mt-0.5">
+              <h3 className="text-2xl font-extrabold text-[#1D201C] mt-0.5">
                 {t('profitBreakdown')}
               </h3>
             </div>
-            <div className="px-3 py-1 rounded-full bg-[#F7F3E8] border border-[#E4E1D7] text-xs font-semibold text-[#68736B]">
+            <div className="px-3 py-1 rounded-full bg-[#E6EDE0] border border-[#9CAF88]/40 text-xs font-semibold text-[#1D201C]">
               {crop} • {quantity_kg} {t('unitKg')}
             </div>
           </div>
 
-          <div className="divide-y divide-[#E4E1D7] text-sm">
+          <div className="divide-y divide-[rgba(94,114,76,0.18)] text-sm">
             <div className="flex items-center justify-between py-3">
               <div className="flex items-center gap-3">
-                <div className="w-6 h-6 rounded-full bg-[#DCE8D5]/60 flex items-center justify-center text-[#173F2A] font-bold text-xs">
+                <div className="w-6 h-6 rounded-full bg-[#E6EDE0] flex items-center justify-center text-[#1D201C] font-bold text-xs">
                   +
                 </div>
                 <div>
-                  <span className="font-bold text-[#173F2A] block">{t('grossRevenue')}</span>
-                  <span className="text-xs text-[#68736B]">
+                  <span className="font-bold text-[#1D201C] block">{t('grossRevenue')}</span>
+                  <span className="text-xs text-[#5C5C5A]">
                     {saleable_quantity_kg} {t('unitKg')} × ₹{formatPricePerKg(bestMarket?.price_per_kg)}/{t('unitKg')}
                   </span>
                 </div>
               </div>
-              <span className="font-bold text-base text-[#1E2921]">
+              <span className="font-bold text-base text-[#1D201C]">
                 ₹{formatINR(expected_gross_revenue)}
               </span>
             </div>
 
             <div className="flex items-center justify-between py-3">
               <div className="flex items-center gap-3">
-                <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center text-red-700 font-bold text-xs">
+                <div className="w-6 h-6 rounded-full bg-[#FDE8D8] flex items-center justify-center text-[#CC5500] font-bold text-xs">
                   -
                 </div>
                 <div>
-                  <span className="font-bold text-[#173F2A] block">{t('transportation')}</span>
-                  <span className="text-xs text-[#68736B]">
+                  <span className="font-bold text-[#1D201C] block">{t('transportation')}</span>
+                  <span className="text-xs text-[#5C5C5A]">
                     {t('freightFromTo', { from: farmer_location, to: recommended_market })}
                   </span>
                 </div>
               </div>
-                <span className="font-bold text-base text-red-800">
-                  -₹{formatINR(transportation_cost)}
+              <span className="font-bold text-base text-[#CC5500]">
+                -₹{formatINR(transportation_cost)}
               </span>
             </div>
 
             <div className="flex items-center justify-between py-3">
               <div className="flex items-center gap-3">
-                <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center text-amber-800 font-bold text-xs">
+                <div className="w-6 h-6 rounded-full bg-[#F0F0EE] flex items-center justify-center text-[#5C5C5A] font-bold text-xs">
                   -
                 </div>
                 <div>
-                  <span className="font-bold text-[#173F2A] block">{t('otherCost')}</span>
-                  <span className="text-xs text-[#68736B]">
+                  <span className="font-bold text-[#1D201C] block">{t('otherCost')}</span>
+                  <span className="text-xs text-[#5C5C5A]">
                     {t('mandiCosts')}
                   </span>
                 </div>
               </div>
-                <span className="font-bold text-base text-[#68736B]">
-                  -₹{formatINR(other_costs)}
+              <span className="font-bold text-base text-[#5C5C5A]">
+                -₹{formatINR(other_costs)}
               </span>
             </div>
 
             <div className="flex items-center justify-between pt-4">
               <div className="flex items-center gap-3">
-                <div className="w-6 h-6 rounded-full bg-[#173F2A] flex items-center justify-center text-[#FFFDF7] font-bold text-xs">
+                <div className="w-6 h-6 rounded-full bg-[#192616] flex items-center justify-center text-white font-bold text-xs">
                   =
                 </div>
                 <div>
-                  <span className="font-extrabold text-lg text-[#173F2A] block">
+                  <span className="font-extrabold text-lg text-[#1D201C] block">
                     {t('expectedNet')}
                   </span>
-                  <span className="text-xs text-[#68736B]">
+                  <span className="text-xs text-[#5C5C5A]">
                     {t('actualProfit')}
                   </span>
                 </div>
               </div>
-              <span className="font-black text-2xl text-[#173F2A]">
+              <span className="font-black text-2xl text-[#1D201C]">
                 ₹{formatINR(expected_net_return)}
               </span>
             </div>
@@ -598,14 +664,14 @@ export default function RecommendationResult({ data, meta, onReset }) {
         <div className="mb-12">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-[#68736B] block">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#4A5742] block">
                 {t('fullRanking')}
               </span>
-              <h3 className="text-2xl font-extrabold text-[#173F2A] mt-0.5">
+              <h3 className="text-2xl font-extrabold text-[#1D201C] mt-0.5">
                 {t('marketComparison')}
               </h3>
             </div>
-            <span className="text-xs text-[#68736B]">
+            <span className="text-xs text-[#5C5C5A]">
               {t('sortedByReturn')}
             </span>
           </div>
@@ -616,86 +682,86 @@ export default function RecommendationResult({ data, meta, onReset }) {
               return (
                 <div
                   key={m.name}
-                  className={`rounded-2xl p-6 lift-card ${
+                  className={`rounded-2xl p-6 transition-all ${
                     isWinner
-                      ? 'bg-[#DCE8D5]/60 border-2 border-[#173F2A] shadow-md scale-102'
-                      : 'bg-[#FFFDF7] border border-[#E4E1D7] hover:border-[#6F8F72] shadow-xs'
+                      ? 'bg-[#E6EDE0] border-2 border-[#5E724C] shadow-md'
+                      : 'bg-white border border-[rgba(94,114,76,0.20)] hover:border-[#9CAF88] shadow-xs'
                   }`}
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <div className="text-xs font-bold text-[#68736B] uppercase tracking-wider">
+                      <div className="text-xs font-bold text-[#5C5C5A] uppercase tracking-wider">
                         {t('rank')} #{m.rank}
                       </div>
-                      <h4 className="text-xl font-extrabold text-[#173F2A]">
+                      <h4 className="text-xl font-extrabold text-[#1D201C]">
                         {m.name}
                       </h4>
                     </div>
                     {isWinner && (
-                      <span className="px-2.5 py-1 rounded-full bg-[#173F2A] text-[#FFFDF7] text-[10px] font-bold uppercase tracking-wide">
+                      <span className="px-2.5 py-1 rounded-full bg-[#192616] text-white text-[10px] font-bold uppercase tracking-wide">
                         {t('recommended')}
                       </span>
                     )}
                   </div>
 
                   <div className="space-y-2 text-xs mb-4">
-                    <div className="flex justify-between py-1 border-b border-[#E4E1D7]/60">
-                      <span className="text-[#68736B]">{m.price_type === 'market_price_lastweek_observation' ? t('observedPrice') : t('marketPrice')}</span>
-                      <span className="font-semibold text-[#1E2921]">
+                    <div className="flex justify-between py-1 border-b border-[rgba(94,114,76,0.18)]">
+                      <span className="text-[#5C5C5A]">{m.price_type === 'market_price_lastweek_observation' ? t('observedPrice') : t('marketPrice')}</span>
+                      <span className="font-semibold text-[#1D201C]">
                         ₹{formatPricePerKg(m.price_per_kg)}/{t('unitKg')}
                       </span>
                     </div>
 
-                    <div className="pt-3 border-t border-[#E4E1D7] grid grid-cols-2 gap-2 text-xs">
+                    <div className="pt-3 border-t border-[rgba(94,114,76,0.18)] grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <span className="text-[#68736B] block">{t('harvestQuantity')}</span>
-                        <span className="font-semibold text-[#1E2921]">{m.harvest_quantity_kg ?? quantity_kg} {t('unitKg')}</span>
+                        <span className="text-[#5C5C5A] block">{t('harvestQuantity')}</span>
+                        <span className="font-semibold text-[#1D201C]">{m.harvest_quantity_kg ?? quantity_kg} {t('unitKg')}</span>
                       </div>
                       <div>
-                        <span className="text-[#68736B] block">{t('estimatedLoss')}</span>
-                        <span className="font-semibold text-[#1E2921]">{m.estimated_loss_kg ?? 0} {t('unitKg')}</span>
+                        <span className="text-[#5C5C5A] block">{t('estimatedLoss')}</span>
+                        <span className="font-semibold text-[#1D201C]">{m.estimated_loss_kg ?? 0} {t('unitKg')}</span>
                       </div>
                       <div>
-                        <span className="text-[#68736B] block">{t('saleableQuantity')}</span>
-                        <span className="font-semibold text-[#1E2921]">{m.saleable_quantity_kg ?? quantity_kg} {t('unitKg')}</span>
+                        <span className="text-[#5C5C5A] block">{t('saleableQuantity')}</span>
+                        <span className="font-semibold text-[#1D201C]">{m.saleable_quantity_kg ?? quantity_kg} {t('unitKg')}</span>
                       </div>
                       <div>
-                        <span className="text-[#68736B] block">{t('pricePerKg')}</span>
-                        <span className="font-semibold text-[#1E2921]">₹{formatPricePerKg(m.price_per_kg)}/{t('unitKg')}</span>
+                        <span className="text-[#5C5C5A] block">{t('pricePerKg')}</span>
+                        <span className="font-semibold text-[#1D201C]">₹{formatPricePerKg(m.price_per_kg)}/{t('unitKg')}</span>
                       </div>
                     </div>
 
                     {/* Road Distance */}
-                    <div className="flex justify-between py-1 border-b border-[#E4E1D7]/60">
-                      <span className="text-[#68736B]">{t('roadDistance')}</span>
-                      <span className="font-semibold text-[#1E2921]">
+                    <div className="flex justify-between py-1 border-b border-[rgba(94,114,76,0.18)]">
+                      <span className="text-[#5C5C5A]">{t('roadDistance')}</span>
+                      <span className="font-semibold text-[#1D201C]">
                         {m.distance_km != null ? `${m.distance_km} km` : t('distanceUnavailable')}
                       </span>
                     </div>
 
                     {/* Rate Applied */}
                     {m.rate_applied != null && (
-                      <div className="flex justify-between py-1 border-b border-[#E4E1D7]/60">
-                        <span className="text-[#68736B]">{t('rateApplied')}</span>
-                        <span className="font-semibold text-[#1E2921]">
+                      <div className="flex justify-between py-1 border-b border-[rgba(94,114,76,0.18)]">
+                        <span className="text-[#5C5C5A]">{t('rateApplied')}</span>
+                        <span className="font-semibold text-[#1D201C]">
                           ₹{m.rate_applied} {m.rate_unit || ''}{' '}
-                          <span className="text-[10px] text-[#68736B] font-normal">
+                          <span className="text-[10px] text-[#5C5C5A] font-normal">
                             {m.rate_is_estimate ? `(${t('defaultEstimate')})` : `(${t('customRate')})`}
                           </span>
                         </span>
                       </div>
                     )}
 
-                    <div className="flex justify-between py-1 border-b border-[#E4E1D7]/60">
-                      <span className="text-[#68736B]">{t('transportation')}</span>
-                      <span className="font-semibold text-[#1E2921]">
+                    <div className="flex justify-between py-1 border-b border-[rgba(94,114,76,0.18)]">
+                      <span className="text-[#5C5C5A]">{t('transportation')}</span>
+                      <span className="font-semibold text-[#1D201C]">
                         {m.transport_cost_basis === 'unavailable'
                           ? t('transportCostUnknown')
                           : `₹${formatINR(m.transportation_cost)}`}
                       </span>
                     </div>
                     {m.transport_cost_basis === 'actual_quote' && (
-                      <div className="text-[11px] text-[#68736B]">{t('actualQuoteUsed')}</div>
+                      <div className="text-[11px] text-[#5C5C5A]">{t('actualQuoteUsed')}</div>
                     )}
                     {m.transport_error && (
                       <div className="p-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800 font-medium">
@@ -703,33 +769,33 @@ export default function RecommendationResult({ data, meta, onReset }) {
                       </div>
                     )}
 
-                    <div className="flex justify-between py-1 border-b border-[#E4E1D7]/60">
-                      <span className="text-[#68736B]">{t('grossRevenue')}</span>
-                      <span className="font-semibold text-[#1E2921]">
+                    <div className="flex justify-between py-1 border-b border-[rgba(94,114,76,0.18)]">
+                      <span className="text-[#5C5C5A]">{t('grossRevenue')}</span>
+                      <span className="font-semibold text-[#1D201C]">
                         ₹{formatINR(m.gross_revenue)}
                       </span>
                     </div>
-                    <div className="flex justify-between py-1 border-b border-[#E4E1D7]/60">
-                      <span className="text-[#68736B]">{t('otherCost')}</span>
-                      <span className="font-semibold text-[#1E2921]">
+                    <div className="flex justify-between py-1 border-b border-[rgba(94,114,76,0.18)]">
+                      <span className="text-[#5C5C5A]">{t('otherCost')}</span>
+                      <span className="font-semibold text-[#1D201C]">
                         ₹{formatINR(m.other_costs)}
                       </span>
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-[#E4E1D7] flex items-baseline justify-between">
-                    <span className="text-xs font-bold text-[#68736B] uppercase">
+                  <div className="pt-2 border-t border-[rgba(94,114,76,0.18)] flex items-baseline justify-between">
+                    <span className="text-xs font-bold text-[#5C5C5A] uppercase">
                       {t('netReturn')}
                     </span>
                     <span
                       className={`font-black text-xl ${
-                        isWinner ? 'text-[#173F2A]' : 'text-[#68736B]'
+                        isWinner ? 'text-[#1D201C]' : 'text-[#5C5C5A]'
                       }`}
                     >
                       ₹{formatINR(m.net_return)}
                     </span>
                   </div>
-                  <div className="mt-3 text-xs text-[#68736B]">
+                  <div className="mt-3 text-xs text-[#5C5C5A]">
                     {t('marketDate')}: {market_dates[m.name] || t('sourceUnavailable')}
                     {m.is_stale && (
                       <span className="block mt-1 font-bold text-amber-800">
@@ -745,14 +811,14 @@ export default function RecommendationResult({ data, meta, onReset }) {
           </div>
 
           {incomplete_markets.length > 0 && (
-            <div className="mt-8 rounded-2xl bg-amber-50 border border-amber-200 p-6">
-              <h4 className="text-sm font-bold text-amber-900">{t('incompleteMarkets')}</h4>
-              <p className="text-xs text-amber-800 mt-1">{t('incompleteMarketsHelp')}</p>
+            <div className="mt-8 rounded-2xl bg-[#FDE8D8]/50 border border-[#CC5500]/30 p-6">
+              <h4 className="text-sm font-bold text-[#1D201C]">{t('incompleteMarkets')}</h4>
+              <p className="text-xs text-[#5C5C5A] mt-1">{t('incompleteMarketsHelp')}</p>
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {incomplete_markets.map((market) => (
-                  <div key={market.name} className="p-3.5 rounded-xl bg-white/80 border border-amber-300 text-xs text-amber-900 flex flex-col justify-between">
-                    <span className="font-bold text-sm text-[#173F2A]">{market.name}</span>
-                    <span className="text-amber-800 mt-1">{market.transport_error || t('distanceUnavailable')}</span>
+                  <div key={market.name} className="p-3.5 rounded-xl bg-white border border-[rgba(94,114,76,0.22)] text-xs text-[#1D201C] flex flex-col justify-between">
+                    <span className="font-bold text-sm text-[#1D201C]">{market.name}</span>
+                    <span className="text-[#5C5C5A] mt-1">{market.transport_error || t('distanceUnavailable')}</span>
                   </div>
                 ))}
               </div>
@@ -764,9 +830,9 @@ export default function RecommendationResult({ data, meta, onReset }) {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
           <button
             onClick={onReset}
-            className="w-full sm:w-auto px-6 py-3.5 rounded-full bg-[#FFFDF7] hover:bg-[#F7F3E8] border border-[#E4E1D7] text-[#173F2A] font-semibold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+            className="btn-secondary"
           >
-            <RotateCcw className="w-4 h-4 text-[#6F8F72]" />
+            <RotateCcw className="w-4 h-4 text-[#5E724C]" />
             <span>{t('reset')}</span>
           </button>
         </div>

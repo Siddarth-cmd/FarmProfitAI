@@ -106,11 +106,18 @@ def _request_json(path: str, *, params: dict[str, object] | None = None) -> obje
         "Referer": "https://agmarknet.gov.in/",
         "User-Agent": "FarmProfitAI/0.1",
     }
+    # Use a short timeout for static filter catalog queries to avoid blocking the frontend
+    # when the live Agmarknet filter endpoint hangs.
+    effective_timeout = (
+        float(os.getenv("AGMARKNET_FILTER_TIMEOUT_SECONDS", "2.0"))
+        if path.endswith("/filters")
+        else float(os.getenv("AGMARKNET_TIMEOUT_SECONDS", "5.0"))
+    )
     last_exc: AgmarknetServiceError | None = None
     for attempt in range(1, _MAX_RETRIES + 1):
         request = Request(url, headers=request_headers)
         try:
-            with urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+            with urlopen(request, timeout=effective_timeout) as response:
                 status = getattr(response, "status", None) or response.getcode()
                 body = response.read()
         except HTTPError as exc:
@@ -161,6 +168,7 @@ def _filter_payload() -> object:
     now = time.monotonic()
     if _filter_cache["payload"] is not None and now < _filter_cache["expires_at"]:
         return _filter_cache["payload"]
+
     try:
         payload = _request_json("/daily-price-arrival/filters")
         _filter_cache["payload"] = payload
@@ -171,9 +179,13 @@ def _filter_payload() -> object:
             raise
         try:
             with FILTER_SNAPSHOT_PATH.open("r", encoding="utf-8") as handle:
-                return json.load(handle)
+                payload = json.load(handle)
+            _filter_cache["payload"] = payload
+            _filter_cache["expires_at"] = now + _FILTER_CACHE_TTL_SECONDS
+            return payload
         except (OSError, json.JSONDecodeError) as exc:
             raise AgmarknetParseError("Agmarknet filter snapshot was unavailable") from exc
+
 
 
 def _text(value: object) -> str:

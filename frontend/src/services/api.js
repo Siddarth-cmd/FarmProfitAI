@@ -7,6 +7,10 @@
  *   POST /recommend
  */
 
+// Default fetch timeout in milliseconds for general API requests.
+// Recommendation and forecast endpoints set their own longer timeouts.
+const DEFAULT_TIMEOUT_MS = 12000
+
 const RAW_API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 const API_BASE = RAW_API_BASE.replace(/\/+$/, '')
 
@@ -14,10 +18,13 @@ if (typeof window !== 'undefined') {
   console.log(`[FarmProfit API] Base URL: "${API_BASE || '(relative / Vite proxy -> http://127.0.0.1:8000)'}"`)
 }
 
-const DEFAULT_TIMEOUT_MS = 30000
+const LOCAL_DEV_BACKEND = 'http://127.0.0.1:8000'
+const IS_LOCAL_BROWSER =
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
 
 /**
- * Robust fetch wrapper with timeout via AbortController.
+ * Robust fetch wrapper with timeout via AbortController and automatic local fallback.
  */
 async function apiFetch(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const controller = new AbortController()
@@ -27,7 +34,37 @@ async function apiFetch(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
       ...options,
       signal: controller.signal,
     })
+
+    // If relative request yielded HTML (e.g. Vite SPA serving index.html when proxy isn't active),
+    // and we are on localhost, retry directly against the FastAPI server.
+    const contentType = response.headers.get('content-type') || ''
+    if (contentType.includes('text/html') && IS_LOCAL_BROWSER && !url.startsWith('http')) {
+      const directUrl = `${LOCAL_DEV_BACKEND}${url.startsWith('/') ? '' : '/'}${url}`
+      try {
+        const directRes = await fetch(directUrl, {
+          ...options,
+          signal: controller.signal,
+        })
+        return directRes
+      } catch {
+        // Continue with original response if direct call fails
+      }
+    }
+
     return response
+  } catch (err) {
+    if (IS_LOCAL_BROWSER && !url.startsWith('http')) {
+      const directUrl = `${LOCAL_DEV_BACKEND}${url.startsWith('/') ? '' : '/'}${url}`
+      try {
+        return await fetch(directUrl, {
+          ...options,
+          signal: controller.signal,
+        })
+      } catch {
+        throw err
+      }
+    }
+    throw err
   } finally {
     clearTimeout(timer)
   }
@@ -345,3 +382,53 @@ export async function fetchAvailableMarkets(commodity) {
     return { available: false, markets: [], total: 0 }
   }
 }
+
+/**
+ * Fetch distinct supported crops from database catalogue.
+ * @returns {Promise<{crops: string[], total: number}>}
+ */
+export async function fetchCrops() {
+  const url = `${API_BASE}/crops`
+  try {
+    const response = await apiFetch(url, { method: 'GET', headers: { Accept: 'application/json' } }, 10000)
+    if (!response.ok) {
+      const detail = await extractErrorDetail(response, 'Failed to fetch crops')
+      return { crops: [], total: 0, error: detail }
+    }
+    const data = await response.json()
+    // Backend returns { crops, count } — normalise to also expose `total`
+    return { crops: data.crops ?? [], total: data.count ?? data.total ?? 0, count: data.count ?? 0 }
+  } catch (err) {
+    return { crops: [], total: 0, error: err?.message || 'Network error fetching crops' }
+  }
+}
+
+/**
+ * Fetch distinct varieties for a given crop from database catalogue.
+ * @param {string} crop - Crop name
+ * @returns {Promise<{crop: string, varieties: string[], total: number}>}
+ */
+export async function fetchCropVarieties(crop) {
+  if (!crop || !crop.trim()) {
+    return { crop: '', varieties: [], total: 0 }
+  }
+  const url = `${API_BASE}/crops/${encodeURIComponent(crop.trim())}/varieties`
+  try {
+    const response = await apiFetch(url, { method: 'GET', headers: { Accept: 'application/json' } }, 10000)
+    if (!response.ok) {
+      const detail = await extractErrorDetail(response, 'Failed to fetch crop varieties')
+      return { crop: crop.trim(), varieties: [], total: 0, error: detail }
+    }
+    const data = await response.json()
+    // Backend returns { crop, varieties, count } — normalise to also expose `total`
+    return {
+      crop: data.crop ?? crop.trim(),
+      varieties: data.varieties ?? [],
+      total: data.count ?? data.total ?? 0,
+      count: data.count ?? 0,
+    }
+  } catch (err) {
+    return { crop: crop.trim(), varieties: [], total: 0, error: err?.message || 'Network error fetching varieties' }
+  }
+}
+

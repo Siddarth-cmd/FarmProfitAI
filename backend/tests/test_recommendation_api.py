@@ -248,8 +248,8 @@ def test_multiple_markets_passed_to_engine(client):
 
 def test_selected_markets_without_transport_quotes_are_incomplete(client):
     mock_markets = [
-        _market("Mysore", modal_price=28),
-        _market("Bangalore", modal_price=30),
+        _market("Raichur APMC", modal_price=28),
+        _market("Bidar APMC", modal_price=30),
     ]
     with patch(
         "api.recommendation.fetch_market_prices_with_fallback",
@@ -258,7 +258,8 @@ def test_selected_markets_without_transport_quotes_are_incomplete(client):
         response = client.post(
             "/recommend",
             json=_valid_payload(
-                selected_markets=["Mysore", "Bangalore"],
+                farmer_location="Mandya",
+                selected_markets=["Raichur APMC", "Bidar APMC"],
                 transportation_costs={},
             ),
         )
@@ -268,6 +269,53 @@ def test_selected_markets_without_transport_quotes_are_incomplete(client):
     assert data["available"] is False
     assert data["recommendation"] is None
     assert "No comparable market has a verified transport cost" in data["error"]["message"]
+
+
+def test_mysuru_tomato_recommendation_with_empty_transport_costs_succeeds(client):
+    """Regression test: Mysuru farmer without explicit transport quotes resolves verified highway distances."""
+    mock_markets = [
+        _market("Mysuru APMC", modal_price=28),
+        _market("Hunsur APMC", modal_price=30),
+    ]
+    with patch(
+        "api.recommendation.fetch_market_prices_with_fallback",
+        return_value=MarketDataFetchResult(records=mock_markets, available=True),
+    ):
+        response = client.post(
+            "/recommend",
+            json={
+                "crop": "Tomato",
+                "quantity_kg": 100,
+                "farmer_location": "Mysuru",
+                "state": "Karnataka",
+                "district": "Mysuru",
+                "selected_markets": [],
+                "transportation_costs": {},
+                "other_costs": 0,
+                "transport_mode": "dedicated_vehicle",
+            },
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["available"] is True
+    assert data["error"] is None
+    assert data["recommendation"] is not None
+    assert data["recommendation"]["recommended_market"] == "Mysuru APMC"
+    assert data["recommendation"]["expected_net_return"] == 2680.0
+    assert data["recommendation"]["transportation_cost"] == 120.0
+    ranked = data["recommendation"]["ranked_markets"]
+    assert len(ranked) == 2
+    mysuru_market = next(m for m in ranked if m["name"] == "Mysuru APMC")
+    hunsur_market = next(m for m in ranked if m["name"] == "Hunsur APMC")
+    assert mysuru_market["distance_km"] == 8.0
+    assert mysuru_market["transportation_cost"] == 120.0
+    assert mysuru_market["net_return"] == 2680.0
+    assert mysuru_market["transport_cost_basis"] == "estimated"
+    assert hunsur_market["distance_km"] == 45.0
+    assert hunsur_market["transportation_cost"] == 675.0
+    assert hunsur_market["net_return"] == 2325.0
+    assert hunsur_market["transport_cost_basis"] == "estimated"
 
 
 def test_mysuru_origin_automatically_discovers_four_markets(client):
@@ -598,3 +646,36 @@ def test_explicit_markets_passed_in_request(client):
     assert data["recommendation"] is not None
     assert data["recommendation"]["recommended_market"] == "Mysore"
     assert data["recommendation"]["expected_net_return"] == 13500.0
+
+
+def test_recommendation_with_variety(client):
+    """Recommendation accepts crop variety and returns it in RecommendationResult."""
+    explicit_markets = [
+        {
+            "commodity": "Tomato",
+            "variety": "Hybrid",
+            "state": "Karnataka",
+            "district": "Bangalore",
+            "market": "Bangalore",
+            "date": "2026-10-08",
+            "min_price": 28.0,
+            "modal_price": 30.0,
+            "max_price": 32.0,
+        },
+    ]
+
+    payload = _valid_payload(
+        crop="Tomato",
+        variety="Hybrid",
+        markets=explicit_markets,
+    )
+    payload["variety"] = "Hybrid"
+
+    response = client.post("/recommend", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["available"] is True
+    assert data["recommendation"] is not None
+    assert data["recommendation"]["crop"] == "Tomato"
+    assert data["recommendation"]["variety"] == "Hybrid"
+

@@ -13,17 +13,44 @@ const translations = {
     getStarted: 'Get Started',
     tagline: 'Agri-Fintech Engine',
     heroBadge: 'SMARTER AGRICULTURE • BETTER RETURNS',
-    heroTitle: 'Make every harvest',
-    heroTitleAccent: 'more profitable.',
-    heroDescription: 'Compare market prices, transportation costs and expenses to discover where your harvest can earn the most.',
+    heroTitle: 'Sell smarter.',
+    heroTitleAccent: 'Earn more.',
+    heroDescription: 'Compare crop prices, understand selling costs, and find your best expected return.',
     findMarket: 'Find My Best Market',
     exploreMarkets: 'Explore Markets',
+    navForecast: 'AI Forecast',
+    voiceDecisionReadout: 'Listen to Recommendation',
+    voiceSpeaking: 'Speaking...',
+    stopVoice: 'Stop Audio',
+    whyThisMarketTitle: 'Why This Market?',
+    expectedGrossRevenue: 'Expected Gross Revenue',
+    transportCostLabel: 'Transport Cost',
+    otherCostsLabel: 'Mandi & Other Costs',
+    netInHandReturn: 'Estimated Net Return',
+    runnerUpAdvantage: '+₹{amount} advantage vs #2 {runner_up}',
+    autoSelectTopMarkets: '✦ Auto-select top markets',
+    topMarketsSelected: 'Top suitable markets selected based on price presence and proximity',
+    karnatakaHighwayRoute: 'Verified Karnataka PWD Highway Route',
     netReturnFirst: 'Net Return First',
     netReturnFirstDesc: "Highest price doesn't mean highest profit after transport.",
     validatedData: 'Validated Data',
     validatedDataDesc: 'Real mandi rates from Agmarknet / Data.gov.in.',
     explainable: '100% Explainable',
     explainableDesc: 'Clear numbers showing exactly why a market wins.',
+    mandiIntelligenceBadge: 'KARNATAKA MANDI INTELLIGENCE',
+    mandiIntelligenceTitle: 'Regional Wholesale Market Intelligence',
+    mandiIntelligenceDesc: 'Live arrivals & authentic modal prices across Karnataka APMC market yards. Direct from official market records.',
+    mandiSelectCommodity: 'Select Commodity',
+    mandiViewingState: 'Karnataka APMC Coverage',
+    mandiObservationDate: 'Observation Date',
+    mandiRecordedModal: 'Recorded Modal Price',
+    mandiOpenFullExplorer: 'Open Full Karnataka Market Explorer',
+    mandiSourceAgmarknet: 'Agmarknet / DMI Record',
+    mandiSourceVerifiedCache: 'Verified State Cache',
+    mandiSourceFallback: 'Local Fallback',
+    mandiPricePerKg: '₹{price}/kg',
+    mandiPricePerQtl: '₹{price}/qtl',
+    mandiNoRecords: 'No market records found for the selected commodity in Karnataka.',
     marketDataNotice: 'Market data notice',
     noMarketData: 'No market data is available for this crop to generate a recommendation.',
     backendUnavailable: 'Could not reach the recommendation engine. Check that backend is running.',
@@ -354,6 +381,63 @@ const translations = {
     apiNotice: 'Market prices are retrieved from official Agmarknet and Data.gov.in portals. If upstream services are temporarily limited, verified cached observations or clearly labelled fallback records are displayed.',
     allDistricts: 'All Karnataka Districts',
     districtSelectPrompt: 'Leave blank for all Karnataka districts',
+    jointFreightNotice: 'Transporting multiple crops in one trip saves freight expenses through consolidated vehicle usage.',
+    simulatorNoData: 'Get a recommendation first to explore what-if scenarios.',
+    validationLogistics: 'Enter a valid non-negative vehicle rate and vehicle capacity greater than zero.',
+
+    // Badges & statuses
+    freshBadge: 'Fresh Observation',
+    cachedBadge: 'Verified Cache',
+    staleBadge: 'Historical (> 7d)',
+    acceptableBadge: 'Acceptable Window',
+    fallbackBadge: 'Local Fallback',
+    confidenceLabel: 'Confidence',
+
+    // Crop & Variety Dropdown
+    cropSelectPlaceholder: 'Search or select crop...',
+    varietyLabel: 'Crop Variety',
+    varietyOptional: 'Optional',
+    varietySelectPlaceholder: 'Search or select variety...',
+    allVarieties: 'All Varieties / Any',
+    noVarietiesAvailable: 'No varieties available for this crop',
+    selectCropFirst: 'Select a crop first to view varieties',
+    loadingCrops: 'Loading crops from database...',
+    loadingVarieties: 'Loading varieties...',
+    cropsError: 'Could not load crops list.',
+    varietiesError: 'Could not load varieties.',
+    cropsEmpty: 'No matching crops found.',
+    varietiesEmpty: 'No matching varieties found.',
+    clearSelection: 'Clear selection',
+
+    // Mandi & AI Forecast
+    officialDataRefreshing: 'Official APMC data may be refreshing.',
+    perQuintal: 'Per Quintal',
+    loadingIndicator: '(loading…)',
+    noPriceDataAvailable: 'No Price Data Available',
+    selectMarketPromptForecast: 'Select your market and press',
+    runAIForecastBtn: 'Run AI Forecast',
+    toSeePredictions: 'to see price predictions and timing advice.',
+    forecastUnavailable: 'Forecast Unavailable',
+    projectedPricePathTitle: '7-Day Projected Mandi Price Path',
+    confidenceBandLegend: '95% Confidence Band shown in green tint',
+    spoilageLossNote: 'Accounts for weight loss & ambient spoilage',
+    forecastColDay: 'Day',
+    forecastColPrice: 'Expected Price',
+    forecastColQty: 'Saleable Qty',
+    forecastColNetReturn: 'Expected Net Return',
+    forecastColDiff: 'Diff vs Now',
+    forecastBaseline: 'Baseline',
+    todayLabel: 'Today',
+    daysOffsetLabel: '+{days} Days',
+    estimatedNetUpside: 'Estimated Net Upside',
+    dailyProfitTableTitle: 'Daily Net Profit & Spoilage Breakdown',
+    forecastNoticeApmc: 'The AI Forecast requires real APMC price observations for {market}. Use Market Explorer to fetch and store live Agmarknet prices.',
+    retryLiveData: 'Retry with Live Data',
+    selectedMandiLabel: 'Selected mandi',
+    sourceLocalFallback: 'Local Fallback',
+    sourceVerifiedCache: 'Verified Cache',
+    sourceDataGov: 'Data.gov.in',
+    sourceAgmarknet: 'Agmarknet',
   },
   kn: {
     language: 'ಕನ್ನಡ',
@@ -364,17 +448,44 @@ const translations = {
     getStarted: 'ಪ್ರಾರಂಭಿಸಿ',
     tagline: 'ಕೃಷಿ-ಹಣಕಾಸು ವ್ಯವಸ್ಥೆ',
     heroBadge: 'ಚಾಣಾಕ್ಷ ಕೃಷಿ • ಉತ್ತಮ ಆದಾಯ',
-    heroTitle: 'ಪ್ರತಿ ಬೆಳೆಯನ್ನೂ',
-    heroTitleAccent: 'ಹೆಚ್ಚು ಲಾಭದಾಯಕವಾಗಿಸಿ.',
-    heroDescription: 'ನಿಮ್ಮ ಬೆಳೆಗೆ ಹೆಚ್ಚು ಆದಾಯ ಸಿಗುವ ಮಾರುಕಟ್ಟೆಯನ್ನು ಕಂಡುಹಿಡಿಯಲು ಬೆಲೆ, ಸಾಗಣೆ ವೆಚ್ಚ ಮತ್ತು ಇತರ ಖರ್ಚುಗಳನ್ನು ಹೋಲಿಸಿ.',
+    heroTitle: 'ಚಾಣಾಕ್ಷವಾಗಿ ಮಾರಾಟ ಮಾಡಿ.',
+    heroTitleAccent: 'ಹೆಚ್ಚು ಗಳಿಸಿ.',
+    heroDescription: 'ಬೆಳೆ ದರಗಳನ್ನು ಹೋಲಿಸಿ, ಸಾಗಣೆ ವೆಚ್ಚಗಳನ್ನು ತಿಳಿದುಕೊಳ್ಳಿ ಮತ್ತು ನಿಮ್ಮ ಉತ್ತಮ ಉಳಿಕೆ ಲಾಭವನ್ನು ಕಂಡುಕೊಳ್ಳಿ.',
     findMarket: 'ನನ್ನ ಉತ್ತಮ ಮಾರುಕಟ್ಟೆ ಹುಡುಕಿ',
     exploreMarkets: 'ಮಾರುಕಟ್ಟೆಗಳನ್ನು ನೋಡಿ',
+    navForecast: 'ಎಐ ಮುನ್ನೋಟ',
+    voiceDecisionReadout: 'ಶಿಫಾರಸನ್ನು ಆಲಿಸಿ',
+    voiceSpeaking: 'ಧ್ವನಿ ಪ್ಲೇ ಆಗುತ್ತಿದೆ...',
+    stopVoice: 'ನಿಲ್ಲಿಸಿ',
+    whyThisMarketTitle: 'ಈ ಮಾರುಕಟ್ಟೆ ಏಕೆ?',
+    expectedGrossRevenue: 'ನಿರೀಕ್ಷಿತ ಒಟ್ಟು ಆದಾಯ',
+    transportCostLabel: 'ಸಾಗಣೆ ವೆಚ್ಚ',
+    otherCostsLabel: 'ಮಂಡಿ ಮತ್ತು ಇತರೆ ವೆಚ್ಚಗಳು',
+    netInHandReturn: 'ನಿರೀಕ್ಷಿತ ನಿವ್ವಳ ಲಾಭ',
+    runnerUpAdvantage: '2ನೇ ಸ್ಥಾನದ {runner_up} ಗಿಂತ +₹{amount} ಹೆಚ್ಚು ಲಾಭ',
+    autoSelectTopMarkets: '✦ ಅತ್ಯುತ್ತಮ ಮಾರುಕಟ್ಟೆಗಳನ್ನು ಸ್ವಯಂ-ಆಯ್ಕೆಮಾಡಿ',
+    topMarketsSelected: 'ಬೆಲೆ ಲಭ್ಯತೆ ಮತ್ತು ಸಾಮೀಪ್ಯದ ಆಧಾರದ ಮೇಲೆ ಅತ್ಯುತ್ತಮ ಮಾರುಕಟ್ಟೆಗಳನ್ನು ಆಯ್ಕೆಮಾಡಲಾಗಿದೆ',
+    karnatakaHighwayRoute: 'ಪರಿಶೀಲಿತ ಕರ್ನಾಟಕ ಲೋಕೋಪಯೋಗಿ ರಸ್ತೆ ಮಾರ್ಗ',
     netReturnFirst: 'ಉಳಿಯುವ ಲಾಭ ಮೊದಲು',
     netReturnFirstDesc: 'ಸಾಗಣೆ ವೆಚ್ಚದ ನಂತರ ಅತಿ ಹೆಚ್ಚು ಬೆಲೆಯೇ ಅತಿ ಹೆಚ್ಚು ಲಾಭ ಎಂದಲ್ಲ.',
     validatedData: 'ಪರಿಶೀಲಿಸಿದ ಮಾಹಿತಿ',
     validatedDataDesc: 'Agmarknet / Data.gov.in ನ ನಿಜವಾದ ಮಂಡಿ ದರಗಳು.',
     explainable: 'ಸ್ಪಷ್ಟ ಲೆಕ್ಕಾಚಾರ',
     explainableDesc: 'ಯಾವ ಮಾರುಕಟ್ಟೆ ಏಕೆ ಉತ್ತಮ ಎಂದು ಸ್ಪಷ್ಟ ಸಂಖ್ಯೆಗಳೊಂದಿಗೆ ತಿಳಿಯಿರಿ.',
+    mandiIntelligenceBadge: 'ಕರ್ನಾಟಕ ಮಂಡಿ ಮಾಹಿತಿ',
+    mandiIntelligenceTitle: 'ಪ್ರಾದೇಶಿಕ ಸಗಟು ಮಾರುಕಟ್ಟೆ ಮಾಹಿತಿ',
+    mandiIntelligenceDesc: 'ಕರ್ನಾಟಕದ ಎಪಿಎಂಸಿ ಮಾರುಕಟ್ಟೆಗಳಿಂದ ಅಧಿಕೃತ ಸಗಟು ಬೆಲೆಗಳು ಮತ್ತು ದಾಖಲೆಗಳು.',
+    mandiSelectCommodity: 'ಬೆಳೆ ಆಯ್ಕೆಮಾಡಿ',
+    mandiViewingState: 'ಕರ್ನಾಟಕ ರಾಜ್ಯಾದ್ಯಂತ ಎಪಿಎಂಸಿ ವ್ಯಾಪ್ತಿ',
+    mandiObservationDate: 'ದಾಖಲೆಯ ದಿನಾಂಕ',
+    mandiRecordedModal: 'ದಾಖಲಾದ ದರ',
+    mandiOpenFullExplorer: 'ಸಂಪೂರ್ಣ ಮಾರುಕಟ್ಟೆ ಪರಿಶೋಧಕ ತೆರೆಯಿರಿ',
+    mandiSourceAgmarknet: 'Agmarknet / DMI ದಾಖಲೆ',
+    mandiSourceVerifiedCache: 'ಪರಿಶೀಲಿಸಿದ ರಾಜ್ಯ ಸಂಗ್ರಹ',
+    mandiSourceFallback: 'ಸ್ಥಳೀಯ ಸಂಗ್ರಹ',
+    mandiPricePerKg: '₹{price}/ಕೆಜಿ',
+    mandiPricePerQtl: '₹{price}/ಕ್ವಿಂಟಾಲ್',
+    mandiNoRecords: 'ಕರ್ನಾಟಕದಲ್ಲಿ ಈ ಬೆಳೆಗೆ ಯಾವುದೇ ಮಾರುಕಟ್ಟೆ ದಾಖಲೆಗಳು ಕಂಡುಬಂದಿಲ್ಲ.',
     marketDataNotice: 'ಮಾರುಕಟ್ಟೆ ಮಾಹಿತಿ ಸೂಚನೆ',
     noMarketData: 'ಈ ಬೆಳೆಗೆ ಶಿಫಾರಸು ಮಾಡಲು ಮಾರುಕಟ್ಟೆ ಮಾಹಿತಿ ಲಭ್ಯವಿಲ್ಲ.',
     backendUnavailable: 'ಶಿಫಾರಸು ವ್ಯವಸ್ಥೆಯನ್ನು ಸಂಪರ್ಕಿಸಲಾಗಲಿಲ್ಲ. ಬ್ಯಾಕೆಂಡ್ ಚಾಲನೆಯಲ್ಲಿದೆಯೇ ನೋಡಿ.',
@@ -708,6 +819,60 @@ const translations = {
     apiNotice: 'ಅಧಿಕೃತ ಅಗ್ಮಾರ್ಕ್‌ನೆಟ್ ಮತ್ತು Data.gov.in ಪೋರ್ಟಲ್‌ಗಳಿಂದ ಮಾರುಕಟ್ಟೆ ದರಗಳನ್ನು ಪಡೆಯಲಾಗುತ್ತದೆ. ಸರ್ವರ್ ಲಭ್ಯವಿಲ್ಲದಿದ್ದರೆ, ಪರಿಶೀಲಿತ ಸಂಗ್ರಹಿತ ಮಾಹಿತಿ ಅಥವಾ ಪರ್ಯಾಯ ದಾಖಲೆಗಳನ್ನು ತೋರಿಸಲಾಗುತ್ತದೆ.',
     allDistricts: 'ಎಲ್ಲಾ ಕರ್ನಾಟಕ ಜಿಲ್ಲೆಗಳು',
     districtSelectPrompt: 'ಎಲ್ಲಾ ಕರ್ನಾಟಕ ಜಿಲ್ಲೆಗಳಿಗಾಗಿ ಖಾಲಿ ಬಿಡಿ',
+
+    // Badges & statuses
+    freshBadge: 'ತಾಜಾ ದಾಖಲೆ',
+    cachedBadge: 'ಪರಿಶೀಲಿತ ಸಂಗ್ರಹ',
+    staleBadge: 'ಹಳೆಯ ದಾಖಲೆ (> 7 ದಿನಗಳು)',
+    acceptableBadge: 'ಸ್ವೀಕಾರಾರ್ಹ ಅವಧಿ',
+    fallbackBadge: 'ಸ್ಥಳೀಯ ಪರ್ಯಾಯ',
+    confidenceLabel: 'ವಿಶ್ವಾಸಾರ್ಹತೆ',
+
+    // Crop & Variety Dropdown
+    cropSelectPlaceholder: 'ಬೆಳೆಯನ್ನು ಹುಡುಕಿ ಅಥವಾ ಆಯ್ಕೆಮಾಡಿ...',
+    varietyLabel: 'ಬೆಳೆಯ ತಳಿ',
+    varietyOptional: 'ಐಚ್ಛಿಕ',
+    varietySelectPlaceholder: 'ತಳಿಯನ್ನು ಹುಡುಕಿ ಅಥವಾ ಆಯ್ಕೆಮಾಡಿ...',
+    allVarieties: 'ಎಲ್ಲಾ ತಳಿಗಳು / ಯಾವುದೇ',
+    noVarietiesAvailable: 'ಈ ಬೆಳೆಗೆ ಯಾವುದೇ ತಳಿಗಳು ಲಭ್ಯವಿಲ್ಲ',
+    selectCropFirst: 'ತಳಿಗಳನ್ನು ನೋಡಲು ಮೊದಲು ಬೆಳೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ',
+    loadingCrops: 'ಡೇಟಾಬೇಸ್‌ನಿಂದ ಬೆಳೆಗಳನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...',
+    loadingVarieties: 'ತಳಿಗಳನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...',
+    cropsError: 'ಬೆಳೆಗಳ ಪಟ್ಟಿಯನ್ನು ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.',
+    varietiesError: 'ತಳಿಗಳನ್ನು ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.',
+    cropsEmpty: 'ಯಾವುದೇ ಹೊಂದಿಕೆಯಾಗುವ ಬೆಳೆಗಳು ಕಂಡುಬಂದಿಲ್ಲ.',
+    varietiesEmpty: 'ಯಾವುದೇ ಹೊಂದಿಕೆಯಾಗುವ ತಳಿಗಳು ಕಂಡುಬಂದಿಲ್ಲ.',
+    clearSelection: 'ಆಯ್ಕೆಯನ್ನು ಅಳಿಸಿ',
+
+    // Mandi & AI Forecast
+    officialDataRefreshing: 'ಅಧಿಕೃತ ಎಪಿಎಂಸಿ ಮಾಹಿತಿ ನವೀಕರಣಗೊಳ್ಳುತ್ತಿರಬಹುದು.',
+    perQuintal: 'ಪ್ರತಿ ಕ್ವಿಂಟಾಲ್‌ಗೆ',
+    loadingIndicator: '(ಲೋಡ್ ಆಗುತ್ತಿದೆ…)',
+    noPriceDataAvailable: 'ಯಾವುದೇ ಬೆಲೆ ಮಾಹಿತಿ ಲಭ್ಯವಿಲ್ಲ',
+    selectMarketPromptForecast: 'ನಿಮ್ಮ ಮಾರುಕಟ್ಟೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ ಮತ್ತು',
+    runAIForecastBtn: 'ಎಐ ಮುನ್ನೋಟ ಚಲಾಯಿಸಿ',
+    toSeePredictions: 'ಒತ್ತಿ ಬೆಲೆ ಭವಿಷ್ಯ ಮತ್ತು ಸಮಯದ ಸಲಹೆಗಳನ್ನು ನೋಡಿ.',
+    forecastUnavailable: 'ಮುನ್ನೋಟ ಲಭ್ಯವಿಲ್ಲ',
+    projectedPricePathTitle: '೭ ದಿನಗಳ ನಿರೀಕ್ಷಿತ ಮಂಡಿ ಬೆಲೆ ಪಥ',
+    confidenceBandLegend: '೯೫% ವಿಶ್ವಾಸಾರ್ಹತೆಯ ಶ್ರೇಣಿಯನ್ನು ಹಸಿರು ಛಾಯೆಯಲ್ಲಿ ತೋರಿಸಲಾಗಿದೆ',
+    spoilageLossNote: 'ತೂಕ ನಷ್ಟ ಮತ್ತು ಕೊಳೆಯುವಿಕೆಯನ್ನು ಲೆಕ್ಕಕ್ಕೆ ತೆಗೆದುಕೊಳ್ಳಲಾಗಿದೆ',
+    forecastColDay: 'ದಿನ',
+    forecastColPrice: 'ನಿರೀಕ್ಷಿತ ಬೆಲೆ',
+    forecastColQty: 'ಮಾರಾಟ ಯೋಗ್ಯ ತೂಕ',
+    forecastColNetReturn: 'ನಿರೀಕ್ಷಿತ ಉಳಿಕೆ ಲಾಭ',
+    forecastColDiff: 'ಇಂದಿಗಿಂತ ವ್ಯತ್ಯಾಸ',
+    forecastBaseline: 'ಮೂಲ ಬೆಲೆ',
+    todayLabel: 'ಇಂದು',
+    daysOffsetLabel: '+{days} ದಿನಗಳು',
+    estimatedNetUpside: 'ನಿರೀಕ್ಷಿತ ಹೆಚ್ಚುವರಿ ಲಾಭ',
+    dailyProfitTableTitle: 'ದೈನಂದಿನ ನಿವ್ವಳ ಲಾಭ ಮತ್ತು ನಷ್ಟದ ವಿವರ',
+    forecastNoticeApmc: '{market} ಮಾರುಕಟ್ಟೆಗೆ ಎಐ ಮುನ್ನೋಟಕ್ಕೆ ನೈಜ ಎಪಿಎಂಸಿ ದರಗಳು ಬೇಕಾಗುತ್ತವೆ. ಲೈವ್ ಅಗ್ಮಾರ್ಕ್‌ನೆಟ್ ದರಗಳನ್ನು ಪಡೆಯಲು ಮಾರುಕಟ್ಟೆ ಎಕ್ಸ್‌ಪ್ಲೋರರ್ ಬಳಸಿ.',
+    retryLiveData: 'ಲೈವ್ ಮಾಹಿತಿಯೊಂದಿಗೆ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ',
+    selectedMandiLabel: 'ಆಯ್ಕೆ ಮಾರುಕಟ್ಟೆ',
+    sourceLocalFallback: 'ಸ್ಥಳೀಯ ಸಂಗ್ರಹ',
+    sourceVerifiedCache: 'ಪರಿಶೀಲಿಸಿದ ಸಂಗ್ರಹ',
+    sourceDataGov: 'Data.gov.in',
+    sourceAgmarknet: 'Agmarknet',
   },
 }
 
@@ -737,11 +902,20 @@ export function localizeBackendText(language, message) {
   if (message.includes('Could not connect to backend server')) {
     return t('backendUnavailable')
   }
+  if (message.includes('No comparable market has a verified transport cost')) {
+    const affectedMatch = message.match(/Affected markets:\s*([^.]+)\.?/)
+    const affected = affectedMatch ? affectedMatch[1].trim() : ''
+    return language === 'kn'
+      ? `ಯಾವುದೇ ಮಾರುಕಟ್ಟೆಗೆ ಪರಿಶೀಲಿಸಿದ ಸಾಗಣೆ ವೆಚ್ಚ ಲಭ್ಯವಿಲ್ಲ. ನಿವ್ವಳ ಲಾಭ ಹೋಲಿಸಲು ಸಾಗಣೆ ವೆಚ್ಚವನ್ನು ನಮೂದಿಸಿ.${affected ? ' ಬಾಧಿತ ಮಾರುಕಟ್ಟೆಗಳು: ' + affected : ''}`
+      : message
+  }
+  if (message.includes('Transport cost unavailable')) {
+    return language === 'kn'
+      ? 'ಸಾಗಣೆ ವೆಚ್ಚ ಲಭ್ಯವಿಲ್ಲ. ನಿವ್ವಳ ಲಾಭವನ್ನು ಹೋಲಿಸಲು ದಯವಿಟ್ಟು ನಿಜವಾದ ಸಾಗಣೆ ವೆಚ್ಚವನ್ನು ನಮೂದಿಸಿ.'
+      : message
+  }
   if (message.includes('No road-distance provider is configured')) {
     return t('routingNotConfigured')
-  }
-  if (message.includes('Affected markets:')) {
-    return message
   }
   if (message.includes('could not be uniquely geocoded') || message.includes('Geocoding unavailable')) {
     return t('geocodingFailed')
@@ -757,6 +931,9 @@ export function localizeBackendText(language, message) {
   }
   if (message.includes('Route lookup failed') || message.includes('No verified route')) {
     return t('routingFailed')
+  }
+  if (message.includes('Affected markets:')) {
+    return message
   }
 
   if (message.includes('No Agmarknet market records matched') || message.includes('No live market records matched')) {
@@ -847,3 +1024,26 @@ export function useLanguage() {
     t: (key, vars) => translate('en', key, vars),
   }
 }
+
+export const CROP_LABELS = {
+  'Tomato': { en: 'Tomato', kn: 'ಟೊಮೇಟೊ' },
+  'Onion': { en: 'Onion', kn: 'ಈರುಳ್ಳಿ' },
+  'Potato': { en: 'Potato', kn: 'ಆಲೂಗಡ್ಡೆ' },
+  'Maize': { en: 'Maize', kn: 'ಮೆಕ್ಕೆಜೋಳ' },
+  'Bengal Gram': { en: 'Bengal Gram', kn: 'ಕಡಲೆ ಕಾಳು' },
+  'Capsicum': { en: 'Capsicum', kn: 'ದಪ್ಪ ಮೆಣಸಿನಕಾಯಿ' },
+  'Green Chilli': { en: 'Green Chilli', kn: 'ಹಸಿರು ಮೆಣಸಿನಕಾಯಿ' },
+  'Chilli': { en: 'Chilli', kn: 'ಮೆಣಸಿನಕಾಯಿ' },
+  'Cotton': { en: 'Cotton', kn: 'ಹತ್ತಿ' },
+}
+
+export function getCropDisplayName(crop, language) {
+  if (!crop) return ''
+  const trimmed = crop.trim()
+  const found = CROP_LABELS[trimmed]
+  if (found) {
+    return language === 'kn' ? found.kn : found.en
+  }
+  return trimmed
+}
+

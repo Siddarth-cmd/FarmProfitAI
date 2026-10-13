@@ -132,6 +132,7 @@ class RecommendationResult(BaseModel):
     """Result of market recommendation maximizing net return."""
 
     crop: str
+    variety: str | None = None
     quantity_kg: float
     farmer_location: str
     recommended_market: str | None = None
@@ -271,6 +272,7 @@ def recommend_market(
     distance_provider: RoadDistanceProvider | None = None,
     logistics_config: LogisticsConfig | None = None,
     transportation_cost_basis: str | Mapping[str, str] | None = None,
+    variety: str | None = None,
 ) -> RecommendationResult:
     """Recommend the market maximizing expected net return.
 
@@ -305,6 +307,7 @@ def recommend_market(
     if not markets:
         return RecommendationResult(
             crop=crop_clean,
+            variety=variety,
             quantity_kg=qty,
             farmer_location=location_clean,
             recommended_market=None,
@@ -588,6 +591,7 @@ def recommend_market(
             )
         return RecommendationResult(
             crop=crop_clean,
+            variety=variety,
             quantity_kg=qty,
             farmer_location=location_clean,
             recommended_market=None,
@@ -651,6 +655,7 @@ def recommend_market(
 
     return RecommendationResult(
         crop=crop_clean,
+        variety=variety,
         quantity_kg=qty,
         farmer_location=location_clean,
         recommended_market=best.name,

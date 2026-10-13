@@ -24,6 +24,10 @@ export default defineConfig({
         target: backendTarget,
         changeOrigin: true,
       },
+      '/crops': {
+        target: backendTarget,
+        changeOrigin: true,
+      },
       '/forecast': {
         target: backendTarget,
         changeOrigin: true,
@@ -36,6 +40,10 @@ export default defineConfig({
   },
   preview: {
     proxy: {
+      '/crops': {
+        target: backendTarget,
+        changeOrigin: true,
+      },
       '/market-filters': {
         target: backendTarget,
         changeOrigin: true,

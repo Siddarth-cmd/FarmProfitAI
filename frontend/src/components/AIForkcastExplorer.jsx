@@ -111,39 +111,37 @@ export default function AIForkcastExplorer() {
   }
 
   return (
-    <section className="py-12 md:py-20 botanical-bg reveal-soft">
+    <section className="py-12 md:py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       {/* Title */}
       <div className="text-center max-w-3xl mx-auto mb-10">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E6EDE0] border border-[#9CAF88]/50 text-[#3A472E] text-xs font-bold uppercase tracking-wider mb-3 shadow-xs">
-          <Sparkles className="w-3.5 h-3.5 text-[#CC5500]" />
-          <span>{language === 'kn' ? 'ಕರ್ನಾಟಕ ಎಪಿಎಂಸಿ ಮುನ್ನೋಟ' : 'Karnataka APMC Price Intelligence'}</span>
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#173D2A] text-[#E7C96B] text-xs font-bold uppercase tracking-wider mb-3 shadow-xs">
+          <Sparkles className="w-3.5 h-3.5 text-[#E7C96B]" />
+          <span>{t('forecastBadge')}</span>
         </div>
-        <h2 className="text-3xl sm:text-5xl font-extrabold text-[#1D201C] tracking-tight">
-          {language === 'kn' ? 'ಎಐ ಬೆಲೆ ಮುನ್ನೋಟ ಮತ್ತು ಸಮಯ' : 'AI Price Forecast & Timing'}
+        <h2 className="text-3xl sm:text-5xl font-extrabold text-[#20291F] tracking-tight font-editorial">
+          {t('forecastTitle')}
         </h2>
-        <p className="mt-3 text-base text-[#5C5C5A]">
-          {language === 'kn'
-            ? 'ಕರ್ನಾಟಕ ಎಪಿಎಂಸಿ ದರಗಳ ಮುನ್ನೋಟವನ್ನು ಪರಿಶೀಲಿಸಿ, ತಕ್ಷಣ ಮಾರಾಟ ಮಾಡಬೇಕೇ ಅಥವಾ ಕಾಯಬೇಕೇ ಎಂದು ನಿರ್ಧರಿಸಿ.'
-            : 'Track Karnataka APMC wholesale arrivals, review verified historical observations, and understand whether to sell immediately or hold produce.'}
+        <p className="mt-3 text-base text-[#52604D]">
+          {t('forecastDesc')}
         </p>
       </div>
 
       {/* Control Selector Card */}
       <form
         onSubmit={handleSubmit}
-        className="card-botanical p-6 sm:p-8 rounded-3xl border border-[#E2DFD5] shadow-lg mb-6"
+        className="card-softwhite p-6 sm:p-8 rounded-3xl border border-[#286B43]/20 shadow-md mb-6"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-5">
           {/* Crop Selector */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-[#1D201C] mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#20291F] mb-1.5">
               {t('crop')}
             </label>
             <select
               value={selectedCrop}
               onChange={handleCropChange}
-              className="w-full bg-[#F5F5F3] border border-[#DEDEDA] rounded-xl px-3.5 py-2.5 text-sm font-semibold text-[#1D201C] focus:bg-white focus:border-[#9CAF88] outline-hidden cursor-pointer shadow-2xs"
+              className="w-full bg-[#FFFDF7] border border-[#286B43]/25 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-[#20291F] focus:border-[#173D2A] outline-hidden cursor-pointer shadow-2xs"
             >
               {cropOptions.map((crop) => (
                 <option key={crop} value={crop}>
@@ -155,17 +153,17 @@ export default function AIForkcastExplorer() {
 
           {/* Market Selector */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-[#1D201C] mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#20291F] mb-1.5">
               {t('marketMandi')}
               {marketsLoading && (
-                <span className="ml-1 text-[10px] font-normal text-[#646860] normal-case">{t('loadingIndicator')}</span>
+                <span className="ml-1 text-[10px] font-normal text-[#52604D] normal-case">{t('loadingIndicator')}</span>
               )}
             </label>
             <select
               value={selectedMarket}
               onChange={handleMarketChange}
               disabled={marketsLoading || marketOptions.length === 0}
-              className="w-full bg-[#F5F5F3] border border-[#DEDEDA] rounded-xl px-3.5 py-2.5 text-sm font-semibold text-[#1D201C] focus:bg-white focus:border-[#9CAF88] outline-hidden cursor-pointer disabled:opacity-50 shadow-2xs"
+              className="w-full bg-[#FFFDF7] border border-[#286B43]/25 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-[#20291F] focus:border-[#173D2A] outline-hidden cursor-pointer disabled:opacity-50 shadow-2xs"
             >
               {marketOptions.length === 0 && !marketsLoading && (
                 <option value="">{t('marketOptionsEmpty')}</option>
@@ -180,7 +178,7 @@ export default function AIForkcastExplorer() {
 
           {/* Quantity Input */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-[#1D201C] mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#20291F] mb-1.5">
               {t('quantityKg')}
             </label>
             <input
@@ -188,13 +186,13 @@ export default function AIForkcastExplorer() {
               min="1"
               value={quantityKg}
               onChange={(e) => setQuantityKg(Math.max(1, Number(e.target.value)))}
-              className="w-full bg-[#F5F5F3] border border-[#DEDEDA] rounded-xl px-3.5 py-2.5 text-sm font-semibold text-[#1D201C] focus:bg-white focus:border-[#9CAF88] outline-hidden shadow-2xs"
+              className="w-full bg-[#FFFDF7] border border-[#286B43]/25 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-[#20291F] focus:border-[#173D2A] outline-hidden shadow-2xs"
             />
           </div>
 
           {/* Transport Cost */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-[#1D201C] mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#20291F] mb-1.5">
               {t('transportCost')} (₹)
             </label>
             <input
@@ -202,30 +200,30 @@ export default function AIForkcastExplorer() {
               min="0"
               value={transportCost}
               onChange={(e) => setTransportCost(Math.max(0, Number(e.target.value)))}
-              className="w-full bg-[#F5F5F3] border border-[#DEDEDA] rounded-xl px-3.5 py-2.5 text-sm font-semibold text-[#1D201C] focus:bg-white focus:border-[#9CAF88] outline-hidden shadow-2xs"
+              className="w-full bg-[#FFFDF7] border border-[#286B43]/25 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-[#20291F] focus:border-[#173D2A] outline-hidden shadow-2xs"
             />
           </div>
         </div>
 
         {/* Submit Row */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-3 border-t border-[#E2DFD5]">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-4 border-t border-[#286B43]/15">
           <button
             type="submit"
             disabled={marketsLoading || !selectedMarket}
-            className="btn-3d-amber px-7 py-3 text-sm font-bold flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-gold px-7 py-3 text-sm font-bold flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {marketsLoading ? (
-              <RefreshCw className="w-4 h-4 animate-spin text-white" />
+              <RefreshCw className="w-4 h-4 animate-spin text-[#173D2A]" />
             ) : (
-              <Sparkles className="w-4 h-4 text-white" />
+              <Sparkles className="w-4 h-4 text-[#173D2A]" />
             )}
             <span>{t('runAIForecastBtn')}</span>
           </button>
 
           {selectedMarket && selectedDistrict && (
-            <span className="text-xs text-[#646860] flex items-center gap-1.5">
-              <Database className="w-3.5 h-3.5 text-[#5E724C]" />
-              <span>{t('selectedMandiLabel')}: <strong className="text-[#1D201C]">{selectedMarket}</strong> ({selectedDistrict})</span>
+            <span className="text-xs text-[#52604D] flex items-center gap-1.5">
+              <Database className="w-3.5 h-3.5 text-[#286B43]" />
+              <span>{t('selectedMandiLabel')}: <strong className="text-[#173D2A]">{selectedMarket}</strong> ({selectedDistrict})</span>
             </span>
           )}
         </div>
@@ -259,9 +257,9 @@ export default function AIForkcastExplorer() {
       )}
 
       {!committedQuery && !marketsError && selectedMarket && (
-        <div className="text-center py-12 text-[#68736B] text-sm">
-          <Sparkles className="w-8 h-8 mx-auto mb-2 text-[#C9A227] opacity-60" />
-          <p>{t('selectMarketPromptForecast')} <strong className="text-[#173F2A]">{t('runAIForecastBtn')}</strong> {t('toSeePredictions')}</p>
+        <div className="text-center py-12 text-[#52604D] text-sm">
+          <Sparkles className="w-8 h-8 mx-auto mb-2 text-[#E7C96B] opacity-80" />
+          <p>{t('selectMarketPromptForecast')} <strong className="text-[#173D2A]">{t('runAIForecastBtn')}</strong> {t('toSeePredictions')}</p>
         </div>
       )}
       </div>

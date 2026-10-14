@@ -3,6 +3,7 @@ import {
   Wheat,
   Scale,
   Truck,
+  MapPin,
   AlertCircle,
   CheckCircle2,
   Circle,
@@ -24,10 +25,36 @@ import {
 } from '../services/api'
 
 const COMMON_CROPS = [
-  { name: 'Tomato', label: 'ಟೊಮೇಟೊ' },
-  { name: 'Onion', label: 'ಈರುಳ್ಳಿ' },
-  { name: 'Potato', label: 'ಆಲೂಗಡ್ಡೆ' },
-  { name: 'Maize', label: 'ಮೆಕ್ಕೆಜೋಳ' },
+  {
+    name: 'Tomato',
+    label: 'ಟೊಮೇಟೊ',
+    image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=320&q=80',
+  },
+  {
+    name: 'Onion',
+    label: 'ಈರುಳ್ಳಿ',
+    image: 'https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?auto=format&fit=crop&w=320&q=80',
+  },
+  {
+    name: 'Potato',
+    label: 'ಆಲೂಗಡ್ಡೆ',
+    image: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=320&q=80',
+  },
+  {
+    name: 'Maize',
+    label: 'ಮೆಕ್ಕೆಜೋಳ',
+    image: 'https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=320&q=80',
+  },
+  {
+    name: 'Green Chilli',
+    label: 'ಹಸಿ ಮೆಣಸಿನಕಾಯಿ',
+    image: 'https://images.unsplash.com/photo-1588252303782-cb80119abd6d?auto=format&fit=crop&w=320&q=80',
+  },
+  {
+    name: 'Capsicum',
+    label: 'ದಪ್ಪ ಮೆಣಸಿನಕಾಯಿ',
+    image: 'https://images.unsplash.com/photo-1563565375-f3fdfdbefa83?auto=format&fit=crop&w=320&q=80',
+  },
 ]
 
 const QUANTITY_PRESETS = [250, 500, 1000, 2500]
@@ -76,6 +103,35 @@ export default function FarmerInput({ onSubmit, isLoading }) {
   const [visibleMarketCount, setVisibleMarketCount] = useState(10)
   const [formError, setFormError] = useState('')
 
+  const totalProduceWeight = useMemo(() => {
+    if (harvestType === 'single') {
+      return Math.max(0, parseFloat(quantity) || 0)
+    }
+    return multiCrops.reduce((acc, c) => acc + Math.max(0, parseFloat(c.quantity) || 0), 0)
+  }, [harvestType, quantity, multiCrops])
+
+  const sharedUnitsCount = useMemo(() => {
+    if (sharedRateType === 'per_crate') {
+      return Math.ceil(totalProduceWeight / 25)
+    }
+    if (sharedRateType === 'per_bag') {
+      return Math.ceil(totalProduceWeight / 50)
+    }
+    return totalProduceWeight
+  }, [sharedRateType, totalProduceWeight])
+
+  const defaultSharedRate = useMemo(() => {
+    if (sharedPricingBasis === 'distance_based') {
+      if (sharedRateType === 'per_crate') return 0.75
+      if (sharedRateType === 'per_bag') return 1.50
+      return 0.03
+    } else {
+      if (sharedRateType === 'per_crate') return 30
+      if (sharedRateType === 'per_bag') return 50
+      return 1.50
+    }
+  }, [sharedPricingBasis, sharedRateType])
+
   // Load database-backed crops
   const loadCropsList = useCallback(async () => {
     setCropsLoading(true)
@@ -117,7 +173,14 @@ export default function FarmerInput({ onSubmit, isLoading }) {
       if (!active) return
       setVarietiesLoading(false)
       if (response && Array.isArray(response.varieties)) {
-        setVarietyOptions(response.varieties)
+        const clean = response.varieties.filter((v) => {
+          if (!v || typeof v !== 'string') return false
+          const upper = v.toUpperCase()
+          if (upper.includes('APMC') || upper.includes('MARKET') || upper.includes('MANDI')) return false
+          if (v.trim().toLowerCase() === crop.trim().toLowerCase()) return false
+          return true
+        })
+        setVarietyOptions(clean)
       } else {
         setVarietyOptions([])
         if (response?.error) setVarietiesError(response.error)
@@ -319,6 +382,7 @@ export default function FarmerInput({ onSubmit, isLoading }) {
         return
       }
       payloadCrops = []
+      const seenCrops = new Set()
       for (const item of multiCrops) {
         const cName = item.crop.trim()
         const qNum = parseFloat(item.quantity)
@@ -327,6 +391,13 @@ export default function FarmerInput({ onSubmit, isLoading }) {
           setFormError(t('validationCrop'))
           return
         }
+        const cLower = cName.toLowerCase()
+        if (seenCrops.has(cLower)) {
+          setFormError(t('duplicateCropWarning'))
+          return
+        }
+        seenCrops.add(cLower)
+
         if (isNaN(qNum) || qNum <= 0) {
           setFormError(t('validationQuantity'))
           return
@@ -449,26 +520,26 @@ export default function FarmerInput({ onSubmit, isLoading }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-10 reveal-soft">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E6EDE0] border border-[#9CAF88]/50 text-[#3A472E] text-xs font-bold uppercase tracking-wider mb-3 shadow-xs">
-            <Wheat className="w-3.5 h-3.5 text-[#5E724C]" />
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#173D2A] text-[#E7C96B] text-xs font-bold uppercase tracking-wider mb-3 shadow-xs">
+            <Wheat className="w-3.5 h-3.5 text-[#E7C96B]" />
             <span>{t('calculateProfit')}</span>
           </div>
-          <h2 className="text-3xl sm:text-5xl font-extrabold text-[#1D201C] tracking-tight">
+          <h2 className="text-3xl sm:text-5xl font-extrabold text-[#173D2A] tracking-tight font-editorial">
             {t('findProfitable')}
           </h2>
-          <p className="mt-3 text-base sm:text-lg text-[#5C5C5A]">
+          <p className="mt-3 text-base sm:text-lg text-[#52604D]">
             {t('tellHarvest')}
           </p>
         </div>
 
         {/* Main Card */}
-        <div className="panel-sage rounded-3xl p-6 sm:p-10 relative overflow-hidden transition-all border border-[rgba(94,114,76,0.20)] shadow-lg">
-          {/* Subtle Sage Green brand top bar */}
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#9CAF88] via-[#5E724C] to-[#CC5500]" />
+        <div className="bg-[#FFFDF7] rounded-3xl p-6 sm:p-10 relative overflow-hidden transition-all border border-[#286B43]/20 shadow-md">
+          {/* Deep Forest to Harvest Gold gradient top bar */}
+          <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-[#173D2A] via-[#286B43] to-[#E7C96B]" />
 
           {formError && (
-            <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-900 flex items-start gap-3 animate-in fade-in duration-200">
-              <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+            <div className="mb-6 p-4 rounded-2xl bg-[#FFF4E6] border border-[#C25E00]/30 text-[#8B3800] flex items-start gap-3 animate-in fade-in duration-200">
+              <AlertCircle className="w-5 h-5 text-[#C25E00] shrink-0 mt-0.5" />
               <p className="text-sm font-semibold">{formError}</p>
             </div>
           )}
@@ -480,14 +551,14 @@ export default function FarmerInput({ onSubmit, isLoading }) {
               <div className="lg:col-span-7 space-y-7">
                 
                 {/* Harvest Type Toggle */}
-                <div className="p-1 rounded-2xl bg-[#F5F5F3] border border-[#DEDEDA] flex max-w-sm shadow-xs">
+                <div className="p-1 rounded-2xl bg-[#FCFAF4] border border-[#286B43]/20 flex max-w-sm shadow-xs">
                   <button
                     type="button"
                     onClick={() => setHarvestType('single')}
-                    className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#286B43] ${
                       harvestType === 'single'
-                        ? 'bg-[#9CAF88] text-[#1D201C] shadow-xs'
-                        : 'text-[#646860] hover:text-[#1D201C]'
+                        ? 'bg-[#173D2A] text-[#FFFDF7] shadow-xs'
+                        : 'text-[#52604D] hover:text-[#173D2A]'
                     }`}
                   >
                     {t('singleCropHarvest')}
@@ -495,10 +566,10 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                   <button
                     type="button"
                     onClick={() => setHarvestType('multi')}
-                    className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#286B43] ${
                       harvestType === 'multi'
-                        ? 'bg-[#9CAF88] text-[#1D201C] shadow-xs'
-                        : 'text-[#646860] hover:text-[#1D201C]'
+                        ? 'bg-[#173D2A] text-[#FFFDF7] shadow-xs'
+                        : 'text-[#52604D] hover:text-[#173D2A]'
                     }`}
                   >
                     {t('multiCropHarvest')}
@@ -507,37 +578,61 @@ export default function FarmerInput({ onSubmit, isLoading }) {
 
                 {/* Field 1: Single Crop and Variety (Database-driven Dropdowns) */}
                 {harvestType === 'single' ? (
-                  <div className="card-concrete p-5 rounded-2xl border border-[#DEDEDA] space-y-4">
+                  <div className="card-softwhite p-5 rounded-2xl border border-[#286B43]/20 space-y-4">
                     {/* Header Row */}
                     <div className="flex items-center justify-between">
-                      <label htmlFor="crop-select-trigger" className="text-xs font-bold text-[#1D201C] uppercase tracking-wider flex items-center gap-2">
-                        <Wheat className="w-4 h-4 text-[#5E724C]" />
+                      <label htmlFor="crop-select-trigger" className="text-xs font-bold text-[#173D2A] uppercase tracking-wider flex items-center gap-2">
+                        <Wheat className="w-4 h-4 text-[#286B43]" />
                         <span>{t('cropCommodity')}</span>
                       </label>
-                      <span className="text-[11px] text-[#646860] font-medium">{t('selectOrType')}</span>
+                      <span className="text-[11px] text-[#52604D] font-medium">{t('selectOrType')}</span>
                     </div>
 
-                    {/* Quick Crop Pills */}
-                    <div className="flex flex-wrap gap-2">
-                      {COMMON_CROPS.map((item) => (
-                        <button
-                          key={item.name}
-                          type="button"
-                          onClick={() => {
-                            setCrop(item.name)
-                            setVariety('')
-                            setIsCropDropdownOpen(false)
-                            setCropSearch('')
-                          }}
-                          className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
-                            crop.toLowerCase() === item.name.toLowerCase()
-                              ? 'bg-[#9CAF88] text-[#1D201C] shadow-xs border border-[#8EA07A]'
-                              : 'bg-white text-[#1D201C] hover:bg-[#E6EDE0] border border-[#DEDEDA]'
-                          }`}
-                        >
-                          <span>{language === 'kn' ? item.label : item.name}</span>
-                        </button>
-                      ))}
+                    {/* Photographic Crop Selection Cards */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+                      {COMMON_CROPS.map((item) => {
+                        const isSelected = crop.toLowerCase() === item.name.toLowerCase()
+                        return (
+                          <button
+                            key={item.name}
+                            type="button"
+                            onClick={() => {
+                              setCrop(item.name)
+                              setVariety('')
+                              setIsCropDropdownOpen(false)
+                              setCropSearch('')
+                            }}
+                            className={`p-2 rounded-xl text-center transition-all flex flex-col items-center cursor-pointer border focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:ring-offset-2 ${
+                              isSelected
+                                ? 'bg-[#EAF4EE] border-[#173D2A] ring-2 ring-[#286B43]/40 shadow-xs'
+                                : 'bg-[#FCFAF4] border-[#286B43]/15 hover:bg-[#EAF4EE]/60 hover:border-[#286B43]/40'
+                            }`}
+                          >
+                            <div className="w-full h-14 sm:h-16 rounded-lg overflow-hidden mb-1.5 bg-[#EAF4EE] relative flex items-center justify-center">
+                              <img
+                                src={item.image}
+                                alt={item.name}
+                                loading="lazy"
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none'
+                                  const fallback = e.currentTarget.parentElement?.querySelector('.fallback-icon')
+                                  if (fallback) fallback.classList.remove('hidden')
+                                }}
+                              />
+                              <Wheat className="w-6 h-6 text-[#286B43] fallback-icon hidden" />
+                              {isSelected && (
+                                <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#173D2A] text-[#E7C96B] flex items-center justify-center text-[10px] font-bold shadow-xs">
+                                  ✓
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs font-bold text-[#173D2A] truncate w-full">
+                              {language === 'kn' ? item.label : item.name}
+                            </span>
+                          </button>
+                        )
+                      })}
                     </div>
 
                     {/* Searchable Crop Dropdown */}
@@ -549,14 +644,14 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                         aria-haspopup="listbox"
                         aria-expanded={isCropDropdownOpen}
                         aria-label={t('cropCommodity')}
-                        className="w-full px-4 py-2.5 rounded-xl bg-white border border-[#DEDEDA] hover:border-[#9CAF88] focus:border-[#9CAF88] text-left flex items-center justify-between text-sm transition-all shadow-2xs cursor-pointer"
+                        className="w-full px-4 py-2.5 rounded-xl bg-[#FCFAF4] border border-[#286B43]/25 hover:border-[#286B43] focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:border-[#286B43] text-left flex items-center justify-between text-sm transition-all shadow-2xs cursor-pointer"
                       >
-                        <span className="font-semibold text-[#1D201C]">
+                        <span className="font-semibold text-[#173D2A]">
                           {crop ? getCropDisplayName(crop, language) : t('cropSelectPlaceholder')}
                         </span>
-                        <div className="flex items-center gap-1.5 text-[#646860]">
+                        <div className="flex items-center gap-1.5 text-[#52604D]">
                           {cropsLoading ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-[#9CAF88]" />
+                            <Loader2 className="w-4 h-4 animate-spin text-[#286B43]" />
                           ) : (
                             <ChevronDown className={`w-4 h-4 transition-transform ${isCropDropdownOpen ? 'rotate-180' : ''}`} />
                           )}
@@ -564,23 +659,23 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                       </button>
 
                       {isCropDropdownOpen && (
-                        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-[#9CAF88]/50 rounded-2xl shadow-xl z-30 p-2 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
+                        <div className="absolute top-full left-0 right-0 mt-1.5 bg-[#FFFDF7] border border-[#286B43]/30 rounded-2xl shadow-xl z-30 p-2.5 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
                           {/* Crop Search Input */}
                           <div className="relative mb-2">
-                            <Search className="w-4 h-4 text-[#A7A7A7] absolute left-3 top-1/2 -translate-y-1/2" />
+                            <Search className="w-4 h-4 text-[#52604D] absolute left-3 top-1/2 -translate-y-1/2" />
                             <input
                               type="text"
                               value={cropSearch}
                               onChange={(e) => setCropSearch(e.target.value)}
                               placeholder={t('cropSelectPlaceholder')}
-                              className="w-full pl-9 pr-8 py-2 rounded-xl bg-[#F5F5F3] border border-[#DEDEDA] text-sm text-[#1D201C] focus:bg-white focus:border-[#9CAF88] outline-hidden"
+                              className="w-full pl-9 pr-8 py-2 rounded-xl bg-[#FCFAF4] border border-[#286B43]/25 text-sm text-[#173D2A] focus:bg-[#FFFDF7] focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:border-[#286B43]"
                               autoFocus
                             />
                             {cropSearch && (
                               <button
                                 type="button"
                                 onClick={() => setCropSearch('')}
-                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#A7A7A7] hover:text-[#1D201C]"
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#52604D] hover:text-[#173D2A] p-0.5 rounded focus:outline-none focus:ring-1 focus:ring-[#286B43]"
                               >
                                 <X className="w-3.5 h-3.5" />
                               </button>
@@ -590,8 +685,8 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                           {/* Crop Options List */}
                           <div className="max-h-56 overflow-y-auto space-y-1 pr-1" role="listbox">
                             {cropsLoading ? (
-                              <div className="p-3 text-center text-xs text-[#646860] flex items-center justify-center gap-2">
-                                <Loader2 className="w-4 h-4 animate-spin text-[#9CAF88]" />
+                              <div className="p-3 text-center text-xs text-[#52604D] flex items-center justify-center gap-2">
+                                <Loader2 className="w-4 h-4 animate-spin text-[#286B43]" />
                                 <span>{t('loadingCrops')}</span>
                               </div>
                             ) : cropsError ? (
@@ -600,13 +695,13 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                                 <button
                                   type="button"
                                   onClick={loadCropsList}
-                                  className="mt-1 text-xs font-bold text-[#CC5500] underline"
+                                  className="mt-1 text-xs font-bold text-[#B45309] hover:text-[#7A5F12] underline focus:outline-none focus:ring-1 focus:ring-[#286B43] rounded"
                                 >
                                   {t('retry')}
                                 </button>
                               </div>
                             ) : filteredCrops.length === 0 ? (
-                              <div className="p-3 text-center text-xs text-[#646860]">
+                              <div className="p-3 text-center text-xs text-[#52604D]">
                                 {t('cropsEmpty')}
                               </div>
                             ) : (
@@ -625,14 +720,14 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                                       setIsCropDropdownOpen(false)
                                       setCropSearch('')
                                     }}
-                                    className={`w-full px-3 py-2 rounded-xl text-left text-sm flex items-center justify-between transition-colors cursor-pointer ${
+                                    className={`w-full px-3 py-2 rounded-xl text-left text-sm flex items-center justify-between transition-colors cursor-pointer focus:outline-none focus:bg-[#EAF4EE] focus:ring-1 focus:ring-[#286B43] ${
                                       isSelected
-                                        ? 'bg-[#E6EDE0] text-[#1D201C] font-bold'
-                                        : 'hover:bg-[#F5F5F3] text-[#1D201C]'
+                                        ? 'bg-[#EAF4EE] text-[#173D2A] font-bold'
+                                        : 'hover:bg-[#FCFAF4] text-[#173D2A]'
                                     }`}
                                   >
                                     <span>{displayName}</span>
-                                    {isSelected && <Check className="w-4 h-4 text-[#5E724C]" />}
+                                    {isSelected && <Check className="w-4 h-4 text-[#286B43]" />}
                                   </button>
                                 )
                               })
@@ -643,13 +738,13 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                     </div>
 
                     {/* Variety Dropdown (Dependent on Crop) */}
-                    <div className="pt-3 border-t border-[#DEDEDA]/60">
+                    <div className="pt-3 border-t border-[#286B43]/20">
                       <div className="flex items-center justify-between mb-1.5">
-                        <label htmlFor="variety-select-trigger" className="text-xs font-bold text-[#1D201C] uppercase tracking-wider flex items-center gap-2">
-                          <Tag className="w-3.5 h-3.5 text-[#5E724C]" />
+                        <label htmlFor="variety-select-trigger" className="text-xs font-bold text-[#173D2A] uppercase tracking-wider flex items-center gap-2">
+                          <Tag className="w-3.5 h-3.5 text-[#286B43]" />
                           <span>{t('varietyLabel')}</span>
                         </label>
-                        <span className="text-[11px] text-[#646860] font-medium">({t('varietyOptional')})</span>
+                        <span className="text-[11px] text-[#52604D] font-medium">({t('varietyOptional')})</span>
                       </div>
 
                       <div className="relative" ref={varietyDropdownRef}>
@@ -663,18 +758,18 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                           aria-label={t('varietyLabel')}
                           className={`w-full px-4 py-2.5 rounded-xl border text-left flex items-center justify-between text-sm transition-all shadow-2xs ${
                             !crop
-                              ? 'bg-[#EAEAEA] border-[#DEDEDA] text-[#A7A7A7] cursor-not-allowed opacity-70'
-                              : 'bg-white border-[#DEDEDA] hover:border-[#9CAF88] focus:border-[#9CAF88] text-[#1D201C] cursor-pointer'
+                              ? 'bg-[#F6F0E1]/50 border-[#286B43]/15 text-[#52604D]/60 cursor-not-allowed opacity-75'
+                              : 'bg-[#FCFAF4] border-[#286B43]/25 hover:border-[#286B43] focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:border-[#286B43] text-[#173D2A] cursor-pointer'
                           }`}
                         >
-                          <span className={`font-semibold ${variety ? 'text-[#1D201C]' : 'text-[#646860]'}`}>
+                          <span className={`font-semibold ${variety ? 'text-[#173D2A]' : 'text-[#52604D]'}`}>
                             {!crop
                               ? t('selectCropFirst')
                               : varietiesLoading
                                 ? t('loadingVarieties')
                                 : variety || t('allVarieties')}
                           </span>
-                          <div className="flex items-center gap-1.5 text-[#646860]">
+                          <div className="flex items-center gap-1.5 text-[#52604D]">
                             {variety && (
                               <span
                                 role="button"
@@ -690,13 +785,13 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                                   }
                                 }}
                                 title={t('clearSelection')}
-                                className="p-0.5 rounded-full hover:bg-[#E6EDE0] text-[#A7A7A7] hover:text-[#1D201C] cursor-pointer"
+                                className="p-0.5 rounded-full hover:bg-[#EAF4EE] text-[#52604D] hover:text-[#173D2A] cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#286B43]"
                               >
                                 <X className="w-3.5 h-3.5" />
                               </span>
                             )}
                             {varietiesLoading ? (
-                              <Loader2 className="w-4 h-4 animate-spin text-[#9CAF88]" />
+                              <Loader2 className="w-4 h-4 animate-spin text-[#286B43]" />
                             ) : (
                               <ChevronDown className={`w-4 h-4 transition-transform ${isVarietyDropdownOpen ? 'rotate-180' : ''}`} />
                             )}
@@ -704,24 +799,24 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                         </button>
 
                         {isVarietyDropdownOpen && crop && (
-                          <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-[#9CAF88]/50 rounded-2xl shadow-xl z-30 p-2 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
+                          <div className="absolute top-full left-0 right-0 mt-1.5 bg-[#FFFDF7] border border-[#286B43]/30 rounded-2xl shadow-xl z-30 p-2.5 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
                             {/* Variety Search Input if large list */}
                             {varietyOptions.length > 5 && (
                               <div className="relative mb-2">
-                                <Search className="w-4 h-4 text-[#A7A7A7] absolute left-3 top-1/2 -translate-y-1/2" />
+                                <Search className="w-4 h-4 text-[#52604D] absolute left-3 top-1/2 -translate-y-1/2" />
                                 <input
                                   type="text"
                                   value={varietySearch}
                                   onChange={(e) => setVarietySearch(e.target.value)}
                                   placeholder={t('varietySelectPlaceholder')}
-                                  className="w-full pl-9 pr-8 py-2 rounded-xl bg-[#F5F5F3] border border-[#DEDEDA] text-sm text-[#1D201C] focus:bg-white focus:border-[#9CAF88] outline-hidden"
+                                  className="w-full pl-9 pr-8 py-2 rounded-xl bg-[#FCFAF4] border border-[#286B43]/25 text-sm text-[#173D2A] focus:bg-[#FFFDF7] focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:border-[#286B43]"
                                   autoFocus
                                 />
                                 {varietySearch && (
                                   <button
                                     type="button"
                                     onClick={() => setVarietySearch('')}
-                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#A7A7A7] hover:text-[#1D201C]"
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#52604D] hover:text-[#173D2A] p-0.5 rounded focus:outline-none focus:ring-1 focus:ring-[#286B43]"
                                   >
                                     <X className="w-3.5 h-3.5" />
                                   </button>
@@ -732,8 +827,8 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                             {/* Variety Options List */}
                             <div className="max-h-56 overflow-y-auto space-y-1 pr-1" role="listbox">
                               {varietiesLoading ? (
-                                <div className="p-3 text-center text-xs text-[#646860] flex items-center justify-center gap-2">
-                                  <Loader2 className="w-4 h-4 animate-spin text-[#9CAF88]" />
+                                <div className="p-3 text-center text-xs text-[#52604D] flex items-center justify-center gap-2">
+                                  <Loader2 className="w-4 h-4 animate-spin text-[#286B43]" />
                                   <span>{t('loadingVarieties')}</span>
                                 </div>
                               ) : varietiesError ? (
@@ -741,7 +836,7 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                                   {varietiesError}
                                 </div>
                               ) : varietyOptions.length === 0 ? (
-                                <div className="p-3 text-center text-xs text-[#646860] italic">
+                                <div className="p-3 text-center text-xs text-[#52604D] italic">
                                   {t('noVarietiesAvailable')}
                                 </div>
                               ) : (
@@ -756,18 +851,18 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                                       setIsVarietyDropdownOpen(false)
                                       setVarietySearch('')
                                     }}
-                                    className={`w-full px-3 py-2 rounded-xl text-left text-sm flex items-center justify-between transition-colors cursor-pointer ${
+                                    className={`w-full px-3 py-2 rounded-xl text-left text-sm flex items-center justify-between transition-colors cursor-pointer focus:outline-none focus:bg-[#EAF4EE] focus:ring-1 focus:ring-[#286B43] ${
                                       !variety
-                                        ? 'bg-[#E6EDE0] text-[#1D201C] font-bold'
-                                        : 'hover:bg-[#F5F5F3] text-[#646860]'
+                                        ? 'bg-[#EAF4EE] text-[#173D2A] font-bold'
+                                        : 'hover:bg-[#FCFAF4] text-[#52604D]'
                                     }`}
                                   >
                                     <span>{t('allVarieties')}</span>
-                                    {!variety && <Check className="w-4 h-4 text-[#5E724C]" />}
+                                    {!variety && <Check className="w-4 h-4 text-[#286B43]" />}
                                   </button>
 
                                   {filteredVarieties.length === 0 && varietySearch ? (
-                                    <div className="p-3 text-center text-xs text-[#646860]">
+                                    <div className="p-3 text-center text-xs text-[#52604D]">
                                       {t('varietiesEmpty')}
                                     </div>
                                   ) : (
@@ -784,14 +879,14 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                                             setIsVarietyDropdownOpen(false)
                                             setVarietySearch('')
                                           }}
-                                          className={`w-full px-3 py-2 rounded-xl text-left text-sm flex items-center justify-between transition-colors cursor-pointer ${
+                                          className={`w-full px-3 py-2 rounded-xl text-left text-sm flex items-center justify-between transition-colors cursor-pointer focus:outline-none focus:bg-[#EAF4EE] focus:ring-1 focus:ring-[#286B43] ${
                                             isSelected
-                                              ? 'bg-[#E6EDE0] text-[#1D201C] font-bold'
-                                              : 'hover:bg-[#F5F5F3] text-[#1D201C]'
+                                              ? 'bg-[#EAF4EE] text-[#173D2A] font-bold'
+                                              : 'hover:bg-[#FCFAF4] text-[#173D2A]'
                                           }`}
                                         >
                                           <span className="truncate">{v}</span>
-                                          {isSelected && <Check className="w-4 h-4 text-[#5E724C] shrink-0" />}
+                                          {isSelected && <Check className="w-4 h-4 text-[#286B43] shrink-0" />}
                                         </button>
                                       )
                                     })
@@ -805,23 +900,23 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-2xl p-5 bg-[#F5F5F3] border border-[#DEDEDA] space-y-3">
+                  <div className="card-softwhite bg-[#FFFDF7] rounded-2xl p-5 border border-[#286B43]/20 space-y-3">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold text-[#1D201C] uppercase tracking-wider flex items-center gap-2">
-                        <Wheat className="w-4 h-4 text-[#5E724C]" />
+                      <h4 className="text-xs font-bold text-[#173D2A] uppercase tracking-wider flex items-center gap-2">
+                        <Wheat className="w-4 h-4 text-[#286B43]" />
                         <span>{t('cropListTitle')}</span>
                       </h4>
                       <button
                         type="button"
                         onClick={() => setMultiCrops((prev) => [...prev, { crop: '', quantity: '200', lossPercentage: '0' }])}
-                        className="text-xs font-bold text-[#CC5500] hover:underline cursor-pointer"
+                        className="text-xs font-bold text-[#173D2A] bg-[#EAF4EE] hover:bg-[#286B43] hover:text-white px-2.5 py-1 rounded-lg border border-[#286B43]/30 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#286B43]"
                       >
                         + {t('addCrop')}
                       </button>
                     </div>
                     <div className="space-y-2">
                       {multiCrops.map((cItem, cIdx) => (
-                        <div key={cIdx} className="flex flex-wrap sm:flex-nowrap gap-2 items-center bg-white p-2.5 rounded-xl border border-[#DEDEDA] shadow-2xs">
+                        <div key={cIdx} className="flex flex-wrap sm:flex-nowrap gap-2 items-center bg-[#FCFAF4] p-3 rounded-xl border border-[#286B43]/20 shadow-2xs">
                           <div className="flex-1 min-w-[120px]">
                             <input
                               type="text"
@@ -833,7 +928,7 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                                 setMultiCrops(updated)
                               }}
                               placeholder={t('cropPlaceholder')}
-                              className="w-full px-3 py-1.5 rounded-lg border border-[#DEDEDA] text-sm text-[#1D201C]"
+                              className="w-full px-3 py-1.5 rounded-lg border border-[#286B43]/25 bg-[#FFFDF7] text-sm text-[#173D2A] focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:border-[#286B43]"
                             />
                             <datalist id="multi-crop-datalist">
                               {cropOptions.map((c) => (
@@ -854,9 +949,9 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                                 setMultiCrops(updated)
                               }}
                               placeholder={t('produceWeight')}
-                              className="w-full pr-8 pl-2 py-1.5 rounded-lg border border-[#DEDEDA] text-sm text-[#1D201C]"
+                              className="w-full pr-8 pl-2 py-1.5 rounded-lg border border-[#286B43]/25 bg-[#FFFDF7] text-sm text-[#173D2A] focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:border-[#286B43]"
                             />
-                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#646860]">{t('unitKg')}</span>
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#52604D]">{t('unitKg')}</span>
                           </div>
                           <div className="w-24 relative">
                             <input
@@ -870,15 +965,15 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                                 setMultiCrops(updated)
                               }}
                               placeholder="Loss %"
-                              className="w-full pr-6 pl-2 py-1.5 rounded-lg border border-[#DEDEDA] text-sm text-[#1D201C]"
+                              className="w-full pr-6 pl-2 py-1.5 rounded-lg border border-[#286B43]/25 bg-[#FFFDF7] text-sm text-[#173D2A] focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:border-[#286B43]"
                             />
-                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#646860]">%</span>
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#52604D]">%</span>
                           </div>
                           {multiCrops.length > 1 && (
                             <button
                               type="button"
                               onClick={() => setMultiCrops((prev) => prev.filter((_, idx) => idx !== cIdx))}
-                              className="text-xs text-red-600 hover:text-red-800 px-2 py-1 cursor-pointer"
+                              className="text-xs text-[#B91C1C] hover:bg-red-50 rounded-lg px-2 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-red-400"
                             >
                               ✕
                             </button>
@@ -886,7 +981,7 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                         </div>
                       ))}
                     </div>
-                    <p className="text-xs text-[#646860]">
+                    <p className="text-xs text-[#52604D]">
                       {t('combinedHarvestQuantity', {
                         total: multiCrops.reduce((acc, c) => acc + (parseFloat(c.quantity) || 0), 0),
                       })}
@@ -896,13 +991,13 @@ export default function FarmerInput({ onSubmit, isLoading }) {
 
                 {/* Section 2: Quantity in KG */}
                 {harvestType === 'single' && (
-                  <div className="card-concrete p-5 rounded-2xl border border-[#DEDEDA]">
+                  <div className="card-softwhite p-5 rounded-2xl border border-[#286B43]/20">
                     <div className="flex items-center justify-between mb-2">
-                      <label htmlFor="quantity" className="text-xs font-bold text-[#1D201C] uppercase tracking-wider flex items-center gap-2">
-                        <Scale className="w-4 h-4 text-[#5E724C]" />
+                      <label htmlFor="quantity" className="text-xs font-bold text-[#173D2A] uppercase tracking-wider flex items-center gap-2">
+                        <Scale className="w-4 h-4 text-[#286B43]" />
                         <span>{t('quantityKg')}</span>
                       </label>
-                      <span className="text-[11px] text-[#646860]">{t('produceWeight')}</span>
+                      <span className="text-[11px] text-[#52604D]">{t('produceWeight')}</span>
                     </div>
                     <div className="relative mb-3">
                       <input
@@ -913,9 +1008,9 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                         value={quantity}
                         onChange={(e) => setQuantity(e.target.value)}
                         placeholder={t('quantityPlaceholder')}
-                        className="w-full pl-4 pr-12 py-2.5 rounded-xl bg-white border border-[#DEDEDA] focus:border-[#9CAF88] text-[#1D201C] font-semibold text-base transition-all outline-hidden shadow-2xs"
+                        className="w-full pl-4 pr-12 py-2.5 rounded-xl bg-[#FCFAF4] border border-[#286B43]/25 focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:border-[#286B43] text-[#173D2A] font-semibold text-base transition-all shadow-2xs"
                       />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-[#646860]">
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-[#52604D]">
                         {t('unitKg')}
                       </span>
                     </div>
@@ -926,10 +1021,10 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                           key={q}
                           type="button"
                           onClick={() => setQuantity(String(q))}
-                          className={`flex-1 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                          className={`flex-1 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:ring-offset-1 ${
                             quantity === String(q)
-                              ? 'bg-[#9CAF88] border-[#8EA07A] text-[#1D201C] shadow-2xs'
-                              : 'bg-white border-[#DEDEDA] text-[#646860] hover:bg-[#F5F5F3]'
+                              ? 'bg-[#173D2A] border-[#173D2A] text-[#E7C96B] font-bold shadow-xs'
+                              : 'bg-[#FCFAF4] border-[#286B43]/20 text-[#52604D] hover:bg-[#EAF4EE]'
                           }`}
                         >
                           {q} {t('unitKg')}
@@ -940,10 +1035,10 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                 )}
 
                 {/* Section 3: State & District */}
-                <div className="card-concrete p-5 rounded-2xl border border-[#DEDEDA]">
+                <div className="card-softwhite p-5 rounded-2xl border border-[#286B43]/20">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="state" className="text-xs font-bold text-[#1D201C] uppercase tracking-wider block mb-1.5">
+                      <label htmlFor="state" className="text-xs font-bold text-[#173D2A] uppercase tracking-wider block mb-1.5">
                         {t('stateRequired')}
                       </label>
                       <div className="relative">
@@ -953,17 +1048,17 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                           onChange={handleStateChange}
                           disabled={filtersLoading || filterOptions.states.length === 0}
                           aria-describedby="farmer-filters-status"
-                          className="w-full appearance-none pr-10 px-3.5 py-2.5 rounded-xl bg-white border border-[#DEDEDA] focus:border-[#9CAF88] text-[#1D201C] text-sm outline-hidden disabled:opacity-60 shadow-2xs"
+                          className="w-full appearance-none pr-10 px-3.5 py-2.5 rounded-xl bg-[#FCFAF4] border border-[#286B43]/25 focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:border-[#286B43] text-[#173D2A] text-sm disabled:opacity-60 shadow-2xs"
                         >
                           {filterOptions.states.map((option) => (
                             <option key={option.id} value={option.name}>{option.name}</option>
                           ))}
                         </select>
-                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#646860]" />
+                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52604D]" />
                       </div>
                     </div>
                     <div>
-                      <label htmlFor="district" className="text-xs font-bold text-[#1D201C] uppercase tracking-wider block mb-1.5">
+                      <label htmlFor="district" className="text-xs font-bold text-[#173D2A] uppercase tracking-wider block mb-1.5">
                         {t('districtRequired')}
                       </label>
                       <div className="relative">
@@ -977,9 +1072,9 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                           placeholder={selectedState ? t('districtPlaceholder') : t('selectStateFirst')}
                           disabled={!selectedState && filterOptions.states.length > 0}
                           aria-describedby="farmer-filters-status"
-                          className="w-full appearance-none pr-10 px-3.5 py-2.5 rounded-xl bg-white border border-[#DEDEDA] focus:border-[#9CAF88] text-[#1D201C] text-sm outline-hidden disabled:opacity-60 shadow-2xs"
+                          className="w-full appearance-none pr-10 px-3.5 py-2.5 rounded-xl bg-[#FCFAF4] border border-[#286B43]/25 focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:border-[#286B43] text-[#173D2A] text-sm disabled:opacity-60 shadow-2xs"
                         />
-                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#646860]" />
+                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52604D]" />
                         <datalist id="farmer-district-options">
                           {districtOptions.map((option) => (
                             <option key={option.id} value={option.name} />
@@ -987,7 +1082,7 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                         </datalist>
                       </div>
                     </div>
-                    <div id="farmer-filters-status" className="col-span-full flex items-center gap-2 text-xs text-[#646860]" aria-live="polite">
+                    <div id="farmer-filters-status" className="col-span-full flex items-center gap-2 text-xs text-[#52604D]" aria-live="polite">
                       {filtersLoading && <span>{t('marketFiltersLoading')}</span>}
                       {!filtersLoading && filtersError && (
                         <>
@@ -995,7 +1090,7 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                           <button
                             type="button"
                             onClick={loadFilters}
-                            className="inline-flex items-center gap-1 font-semibold text-[#CC5500] hover:underline cursor-pointer"
+                            className="inline-flex items-center gap-1 font-semibold text-[#B45309] hover:text-[#7A5F12] underline cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#286B43] rounded"
                           >
                             <RefreshCw className="w-3 h-3" />
                             {t('retry')}
@@ -1007,24 +1102,24 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                 </div>
 
                 {/* Section 4: Candidate Mandis & Selection */}
-                <div className="card-concrete p-5 rounded-2xl border border-[#DEDEDA]">
+                <div className="card-softwhite p-5 rounded-2xl border border-[#286B43]/20">
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                    <label className="text-xs font-bold text-[#1D201C] uppercase tracking-wider flex items-center gap-2">
-                      <Truck className="w-4 h-4 text-[#5E724C]" />
+                    <label className="text-xs font-bold text-[#173D2A] uppercase tracking-wider flex items-center gap-2">
+                      <Truck className="w-4 h-4 text-[#286B43]" />
                       <span>{t('candidateMarkets')}</span>
                     </label>
                     <button
                       type="button"
                       onClick={handleAutoSelectTopMarkets}
-                      className="btn-3d-amber px-3 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      className="btn-gold px-3 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:ring-offset-1"
                     >
-                      <Sparkles className="w-3 h-3 text-white" />
+                      <Sparkles className="w-3.5 h-3.5 text-[#173D2A]" />
                       <span>{t('autoSelectTopMarkets') || '✦ Auto-select top markets'}</span>
                     </button>
                   </div>
 
-                  <p className="text-xs text-[#646860] mb-3 leading-relaxed">
-                    {t('transportHelp')}
+                  <p className="text-xs text-[#52604D] mb-3 leading-relaxed">
+                    {transportMode === 'shared_load' ? t('sharedCandidateHelp') : t('transportHelp')}
                   </p>
                   <input
                     type="search"
@@ -1035,9 +1130,9 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                     }}
                     placeholder={t('marketSearchPlaceholder')}
                     aria-label={t('marketSearchPlaceholder')}
-                    className="w-full mb-3 px-3.5 py-2 rounded-xl bg-white border border-[#DEDEDA] text-sm text-[#1D201C] outline-hidden focus:border-[#9CAF88] shadow-2xs"
+                    className="w-full mb-3 px-3.5 py-2 rounded-xl bg-[#FCFAF4] border border-[#286B43]/20 text-sm text-[#173D2A] focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:border-[#286B43] shadow-2xs"
                   />
-                  <div className="rounded-xl border border-[#DEDEDA] bg-white p-2 space-y-1 max-h-60 overflow-y-auto">
+                  <div className="rounded-xl border border-[#286B43]/20 bg-[#FCFAF4] p-2 space-y-1 max-h-60 overflow-y-auto">
                     {visibleMarkets.map((market) => {
                       const selected = markets.some((item) => item.name === market.name)
                       return (
@@ -1045,20 +1140,20 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                           type="button"
                           key={market.id}
                           onClick={() => toggleMarket(market)}
-                          className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors cursor-pointer ${
-                            selected ? 'bg-[#E6EDE0]' : 'hover:bg-[#F5F5F3]'
+                          className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#286B43] ${
+                            selected ? 'bg-[#EAF4EE] border border-[#286B43]/40' : 'hover:bg-[#FFFDF7]'
                           }`}
                         >
-                          <span className={`w-4 h-4 rounded border flex items-center justify-center ${selected ? 'bg-[#9CAF88] border-[#8EA07A] text-[#1D201C] font-bold' : 'border-[#A7A7A7]'}`}>
+                          <span className={`w-4 h-4 rounded border flex items-center justify-center ${selected ? 'bg-[#173D2A] border-[#173D2A] text-[#E7C96B] font-bold text-xs' : 'border-[#286B43]/30'}`}>
                             {selected ? '✓' : ''}
                           </span>
                           <span className="flex-1">
-                            <span className="font-semibold text-[#1D201C]">{market.name}</span>
-                            <span className="block text-xs text-[#646860]">{market.district}</span>
+                            <span className="font-semibold text-[#173D2A]">{market.name}</span>
+                            <span className="block text-xs text-[#52604D]">{market.district}</span>
                           </span>
-                          <span className="text-[11px] font-medium text-[#646860]">
+                          <span className="text-[11px] font-medium text-[#52604D]">
                             {market.price_available ? (
-                              <span className="text-[#3A472E] bg-[#E6EDE0] px-1.5 py-0.5 rounded">
+                              <span className="text-[#173D2A] bg-[#EAF4EE] border border-[#286B43]/30 px-2 py-0.5 rounded-full font-semibold">
                                 {t('priceAvailable')}
                               </span>
                             ) : (
@@ -1069,28 +1164,28 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                       )
                     })}
                     {!marketsLoading && visibleMarkets.length === 0 && (
-                      <p className="p-3 text-sm text-[#646860]">{t('marketOptionsEmpty')}</p>
+                      <p className="p-3 text-sm text-[#52604D]">{t('marketOptionsEmpty')}</p>
                     )}
                     {visibleMarketCount < filteredMarkets.length && (
-                      <div className="flex gap-2 pt-1 border-t border-[#DEDEDA]">
+                      <div className="flex gap-2 pt-1 border-t border-[#286B43]/15">
                         <button
                           type="button"
                           onClick={() => setVisibleMarketCount((count) => count + 20)}
-                          className="flex-1 py-1.5 text-xs font-semibold text-[#1D201C] hover:bg-[#F5F5F3] rounded-lg transition-colors cursor-pointer"
+                          className="flex-1 py-1.5 text-xs font-semibold text-[#173D2A] hover:bg-[#EAF4EE] rounded-lg transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#286B43]"
                         >
                           {t('showMoreMarkets')} (+20)
                         </button>
                         <button
                           type="button"
                           onClick={() => setVisibleMarketCount(filteredMarkets.length)}
-                          className="flex-1 py-1.5 text-xs font-bold text-[#1D201C] hover:bg-[#E6EDE0] rounded-lg transition-colors cursor-pointer"
+                          className="flex-1 py-1.5 text-xs font-bold text-[#173D2A] hover:bg-[#EAF4EE] rounded-lg transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#286B43]"
                         >
                           Show All ({filteredMarkets.length})
                         </button>
                       </div>
                     )}
                   </div>
-                  <p className="mt-2 text-xs text-[#646860]">
+                  <p className="mt-2 text-xs text-[#52604D]">
                     {marketsLoading
                       ? t('marketOptionsLoading')
                       : marketsError || (availableMarkets.length === 0 ? t('marketOptionsEmpty') : t('selectedMarketsCount', { count: markets.length }))}
@@ -1101,20 +1196,26 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                     {markets.map((m, idx) => (
                       <div
                         key={idx}
-                        className="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-[#DEDEDA] shadow-2xs"
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 p-3 rounded-xl bg-[#FFFDF7] border border-[#286B43]/20 shadow-2xs"
                       >
-                        <div className="w-7 h-7 rounded-lg bg-[#E6EDE0] text-[#3A472E] font-bold text-xs flex items-center justify-center shrink-0">
-                          {idx + 1}
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div className="w-7 h-7 rounded-lg bg-[#173D2A] text-[#E7C96B] font-bold text-xs flex items-center justify-center shrink-0">
+                            {idx + 1}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="text-sm font-semibold text-[#173D2A] block truncate sm:whitespace-normal">
+                              {m.name}
+                            </span>
+                            {m.district && (
+                              <span className="text-[11px] text-[#52604D] block truncate">
+                                {m.district}
+                              </span>
+                            )}
+                          </div>
                         </div>
 
-                        <div className="flex-1 min-w-[120px]">
-                          <span className="text-sm font-semibold text-[#1D201C] block">
-                            {m.name}
-                          </span>
-                        </div>
-
-                        <div className="w-36 sm:w-44 relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#646860]">
+                        <div className="w-full sm:w-44 relative shrink-0">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#52604D]">
                             ₹
                           </span>
                           <input
@@ -1124,8 +1225,8 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                             value={m.transportCost}
                             onChange={(e) => handleMarketCostChange(idx, e.target.value)}
                             aria-label={`${t('transportCost')} — ${m.name}`}
-                            placeholder={t('transportCost')}
-                            className="w-full pl-7 pr-3 py-1.5 rounded-lg bg-[#F5F5F3] border border-[#DEDEDA] text-sm text-[#1D201C] font-medium outline-hidden focus:border-[#9CAF88]"
+                            placeholder={transportMode === 'shared_load' ? t('sharedQuotePlaceholder') : t('transportCost')}
+                            className="w-full pl-7 pr-3 py-2 sm:py-1.5 rounded-lg bg-[#FCFAF4] border border-[#286B43]/25 text-sm text-[#173D2A] font-medium focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:border-[#286B43] shadow-2xs"
                           />
                         </div>
                       </div>
@@ -1139,9 +1240,9 @@ export default function FarmerInput({ onSubmit, isLoading }) {
               <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-24">
                 
                 {/* Transport Mode Switcher */}
-                <div className="card-concrete p-5 rounded-2xl border border-[#DEDEDA]">
-                  <label className="text-xs font-bold text-[#1D201C] uppercase tracking-wider flex items-center gap-2 mb-3">
-                    <Truck className="w-4 h-4 text-[#5E724C]" />
+                <div className="card-softwhite p-5 rounded-2xl border border-[#286B43]/20">
+                  <label className="text-xs font-bold text-[#173D2A] uppercase tracking-wider flex items-center gap-2 mb-3">
+                    <Truck className="w-4 h-4 text-[#286B43]" />
                     <span>{t('transportMode')}</span>
                   </label>
 
@@ -1149,19 +1250,19 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                     <button
                       type="button"
                       onClick={() => setTransportMode('dedicated_vehicle')}
-                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:ring-offset-1 ${
                         transportMode === 'dedicated_vehicle'
-                          ? 'bg-[#E6EDE0] border-[#9CAF88] shadow-xs'
-                          : 'bg-white border-[#DEDEDA] hover:bg-[#F5F5F3]'
+                          ? 'bg-[#EAF4EE] border-[#173D2A] shadow-xs'
+                          : 'bg-[#FCFAF4] border-[#286B43]/15 hover:bg-[#EAF4EE]/60'
                       }`}
                     >
-                      <div className="font-bold text-xs text-[#1D201C] flex items-center gap-2">
-                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${transportMode === 'dedicated_vehicle' ? 'border-[#5E724C] bg-[#5E724C]' : 'border-[#A7A7A7]'}`}>
-                          {transportMode === 'dedicated_vehicle' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      <div className="font-bold text-xs text-[#173D2A] flex items-center gap-2">
+                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${transportMode === 'dedicated_vehicle' ? 'border-[#173D2A] bg-[#173D2A]' : 'border-[#286B43]/40'}`}>
+                          {transportMode === 'dedicated_vehicle' && <span className="w-1.5 h-1.5 rounded-full bg-[#E7C96B]" />}
                         </span>
                         <span>{t('dedicatedVehicle')}</span>
                       </div>
-                      <p className="text-[11px] text-[#646860] mt-1 ml-5.5 leading-snug">
+                      <p className="text-[11px] text-[#52604D] mt-1 ml-5.5 leading-snug">
                         {t('dedicatedVehicleDesc')}
                       </p>
                     </button>
@@ -1169,19 +1270,19 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                     <button
                       type="button"
                       onClick={() => setTransportMode('shared_load')}
-                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:ring-offset-1 ${
                         transportMode === 'shared_load'
-                          ? 'bg-[#E6EDE0] border-[#9CAF88] shadow-xs'
-                          : 'bg-white border-[#DEDEDA] hover:bg-[#F5F5F3]'
+                          ? 'bg-[#EAF4EE] border-[#173D2A] shadow-xs'
+                          : 'bg-[#FCFAF4] border-[#286B43]/15 hover:bg-[#EAF4EE]/60'
                       }`}
                     >
-                      <div className="font-bold text-xs text-[#1D201C] flex items-center gap-2">
-                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${transportMode === 'shared_load' ? 'border-[#5E724C] bg-[#5E724C]' : 'border-[#A7A7A7]'}`}>
-                          {transportMode === 'shared_load' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      <div className="font-bold text-xs text-[#173D2A] flex items-center gap-2">
+                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${transportMode === 'shared_load' ? 'border-[#173D2A] bg-[#173D2A]' : 'border-[#286B43]/40'}`}>
+                          {transportMode === 'shared_load' && <span className="w-1.5 h-1.5 rounded-full bg-[#E7C96B]" />}
                         </span>
                         <span>{t('sharedLoad')}</span>
                       </div>
-                      <p className="text-[11px] text-[#646860] mt-1 ml-5.5 leading-snug">
+                      <p className="text-[11px] text-[#52604D] mt-1 ml-5.5 leading-snug">
                         {t('sharedLoadDesc')}
                       </p>
                     </button>
@@ -1189,9 +1290,10 @@ export default function FarmerInput({ onSubmit, isLoading }) {
 
                   {/* Shared Rate Options */}
                   {transportMode === 'shared_load' && (
-                    <div className="p-3.5 rounded-xl bg-white border border-[#DEDEDA] space-y-3">
-                      <div className="flex flex-wrap items-center justify-between gap-1 pb-2 border-b border-[#DEDEDA]">
-                        <span className="text-[11px] font-bold text-[#1D201C] uppercase tracking-wider">
+                    <div className="p-3.5 rounded-xl bg-[#FCFAF4] border border-[#286B43]/20 space-y-3.5">
+                      {/* Pricing Basis Toggle */}
+                      <div className="flex flex-wrap items-center justify-between gap-1 pb-2 border-b border-[#286B43]/15">
+                        <span className="text-[11px] font-bold text-[#173D2A] uppercase tracking-wider">
                           {t('pricingBasis')}
                         </span>
                         <div className="flex gap-1.5">
@@ -1201,10 +1303,10 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                               setSharedPricingBasis('distance_based')
                               if (sharedRateType === 'per_kg') setSharedRateType('per_kg_per_km')
                             }}
-                            className={`px-2 py-1 rounded-lg text-xs font-semibold cursor-pointer ${
+                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#286B43] ${
                               sharedPricingBasis === 'distance_based'
-                                ? 'bg-[#9CAF88] text-[#1D201C]'
-                                : 'bg-[#F5F5F3] text-[#646860]'
+                                ? 'bg-[#173D2A] text-[#FFFDF7]'
+                                : 'bg-[#FCFAF4] text-[#52604D] hover:bg-[#EAF4EE]'
                             }`}
                           >
                             {t('distanceBasedPricing')}
@@ -1215,10 +1317,10 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                               setSharedPricingBasis('fixed_trip')
                               if (sharedRateType === 'per_kg_per_km') setSharedRateType('per_kg')
                             }}
-                            className={`px-2 py-1 rounded-lg text-xs font-semibold cursor-pointer ${
+                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#286B43] ${
                               sharedPricingBasis === 'fixed_trip'
-                                ? 'bg-[#9CAF88] text-[#1D201C]'
-                                : 'bg-[#F5F5F3] text-[#646860]'
+                                ? 'bg-[#173D2A] text-[#FFFDF7]'
+                                : 'bg-[#FCFAF4] text-[#52604D] hover:bg-[#EAF4EE]'
                             }`}
                           >
                             {t('fixedTripPricing')}
@@ -1226,30 +1328,118 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                         </div>
                       </div>
 
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#646860]">₹</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="any"
-                          value={sharedRate}
-                          onChange={(e) => setSharedRate(e.target.value)}
-                          placeholder="0.03"
-                          className="w-full pl-7 pr-3 py-1.5 rounded-lg bg-[#F5F5F3] border border-[#DEDEDA] text-xs text-[#1D201C]"
-                        />
+                      {/* Packaging Unit Selector */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px] text-[#52604D]">
+                          <span className="font-semibold text-[#173D2A] uppercase tracking-wider">
+                            {t('sharedUnitsLabel')}
+                          </span>
+                          <span>
+                            {totalProduceWeight.toLocaleString('en-IN')} kg (~{sharedUnitsCount} {sharedRateType === 'per_crate' ? 'crates' : sharedRateType === 'per_bag' ? 'bags' : 'kg'})
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setSharedRateType(sharedPricingBasis === 'distance_based' ? 'per_kg_per_km' : 'per_kg')}
+                            className={`py-1.5 px-2 rounded-lg text-xs font-semibold text-center cursor-pointer border transition-colors focus:outline-none focus:ring-2 focus:ring-[#286B43] ${
+                              (sharedRateType === 'per_kg_per_km' || sharedRateType === 'per_kg')
+                                ? 'bg-[#173D2A] text-[#FFFDF7] border-[#173D2A]'
+                                : 'bg-[#FFFDF7] text-[#52604D] border-[#286B43]/20 hover:bg-[#EAF4EE]'
+                            }`}
+                          >
+                            {sharedPricingBasis === 'distance_based' ? t('perKgPerKmRate') : t('sharedPerKgRate')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSharedRateType('per_crate')}
+                            className={`py-1.5 px-2 rounded-lg text-xs font-semibold text-center cursor-pointer border transition-colors focus:outline-none focus:ring-2 focus:ring-[#286B43] ${
+                              sharedRateType === 'per_crate'
+                                ? 'bg-[#173D2A] text-[#FFFDF7] border-[#173D2A]'
+                                : 'bg-[#FFFDF7] text-[#52604D] border-[#286B43]/20 hover:bg-[#EAF4EE]'
+                            }`}
+                          >
+                            {t('perCrateRate')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSharedRateType('per_bag')}
+                            className={`py-1.5 px-2 rounded-lg text-xs font-semibold text-center cursor-pointer border transition-colors focus:outline-none focus:ring-2 focus:ring-[#286B43] ${
+                              sharedRateType === 'per_bag'
+                                ? 'bg-[#173D2A] text-[#FFFDF7] border-[#173D2A]'
+                                : 'bg-[#FFFDF7] text-[#52604D] border-[#286B43]/20 hover:bg-[#EAF4EE]'
+                            }`}
+                          >
+                            {t('perBagRate')}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Rate Input */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[11px] text-[#52604D]">
+                          <span>Custom rate (leave blank to use default ₹{defaultSharedRate})</span>
+                        </div>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#52604D]">₹</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            value={sharedRate}
+                            onChange={(e) => setSharedRate(e.target.value)}
+                            placeholder={String(defaultSharedRate)}
+                            className="w-full pl-7 pr-3 py-1.5 rounded-lg bg-[#FCFAF4] border border-[#286B43]/20 text-xs text-[#173D2A] focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:border-[#286B43]"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Load Capacity Advisory Warning */}
+                      {totalProduceWeight > 2500 && (
+                        <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-start gap-2 shadow-2xs">
+                          <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                          <div className="leading-snug">
+                            <span className="font-bold block">{t('sharedCapacityWarning')}</span>
+                            <span className="text-[11px] text-amber-800">
+                              {totalProduceWeight.toLocaleString('en-IN')} kg produce exceeds standard 2,500 kg capacity for shared pickup/auto hauls.
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Live Preview Box */}
+                      <div className="p-2.5 rounded-xl bg-[#EAF4EE] border border-[#286B43]/25 text-xs text-[#173D2A] space-y-1">
+                        <span className="font-bold text-[11px] uppercase tracking-wider text-[#286B43] block">
+                          {t('sharedPreviewTitle')}
+                        </span>
+                        <div className="text-[11px] text-[#52604D] leading-relaxed">
+                          {sharedPricingBasis === 'distance_based' ? (
+                            <>
+                              Rate applied: <span className="font-bold text-[#173D2A]">₹{sharedRate.trim() || defaultSharedRate}</span> per {sharedRateType === 'per_crate' ? 'crate (25kg)' : sharedRateType === 'per_bag' ? 'bag (50kg)' : 'kg'} / km.
+                              <br />
+                              For a sample 50 km haul: <span className="font-bold text-[#173D2A]">~₹{Math.round((parseFloat(sharedRate) || defaultSharedRate) * sharedUnitsCount * 50).toLocaleString('en-IN')}</span> total freight.
+                            </>
+                          ) : (
+                            <>
+                              Rate applied: <span className="font-bold text-[#173D2A]">₹{sharedRate.trim() || defaultSharedRate}</span> flat per {sharedRateType === 'per_crate' ? 'crate (25kg)' : sharedRateType === 'per_bag' ? 'bag (50kg)' : 'kg'}.
+                              <br />
+                              Estimated trip freight: <span className="font-bold text-[#173D2A]">~₹{Math.round((parseFloat(sharedRate) || defaultSharedRate) * sharedUnitsCount).toLocaleString('en-IN')}</span> total for this harvest.
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
                 </div>
 
                 {/* Other Costs & Loss Percentage */}
-                <div className="card-concrete p-5 rounded-2xl border border-[#DEDEDA] space-y-4">
+                <div className="card-softwhite p-5 rounded-2xl border border-[#286B43]/20 space-y-4">
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <label htmlFor="loss-percentage" className="text-xs font-bold text-[#1D201C] uppercase tracking-wider">
+                      <label htmlFor="loss-percentage" className="text-xs font-bold text-[#173D2A] uppercase tracking-wider">
                         {t('lossPercentage')}
                       </label>
-                      <span className="text-[11px] text-[#646860]">{t('optional')}</span>
+                      <span className="text-[11px] text-[#52604D]">{t('optional')}</span>
                     </div>
                     <div className="relative">
                       <input
@@ -1261,9 +1451,9 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                         value={lossPercentage}
                         onChange={(e) => setLossPercentage(e.target.value)}
                         placeholder="0"
-                        className="w-full pr-10 pl-3 py-2 rounded-xl bg-white border border-[#DEDEDA] text-sm text-[#1D201C] outline-hidden focus:border-[#9CAF88]"
+                        className="w-full pr-10 pl-3 py-2 rounded-xl bg-[#FCFAF4] border border-[#286B43]/25 text-sm text-[#173D2A] focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:border-[#286B43]"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#646860]">
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#52604D]">
                         %
                       </span>
                     </div>
@@ -1271,13 +1461,13 @@ export default function FarmerInput({ onSubmit, isLoading }) {
 
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <label htmlFor="other-costs" className="text-xs font-bold text-[#1D201C] uppercase tracking-wider">
+                      <label htmlFor="other-costs" className="text-xs font-bold text-[#173D2A] uppercase tracking-wider">
                         {t('otherCosts')}
                       </label>
-                      <span className="text-[11px] text-[#646860]">{t('optional')}</span>
+                      <span className="text-[11px] text-[#52604D]">{t('optional')}</span>
                     </div>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#646860]">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#52604D]">
                         ₹
                       </span>
                       <input
@@ -1288,18 +1478,203 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                         value={otherCosts}
                         onChange={(e) => setOtherCosts(e.target.value)}
                         placeholder="0"
-                        className="w-full pl-7 pr-3 py-2 rounded-xl bg-white border border-[#DEDEDA] text-sm text-[#1D201C] outline-hidden focus:border-[#9CAF88]"
+                        className="w-full pl-7 pr-3 py-2 rounded-xl bg-[#FCFAF4] border border-[#286B43]/25 text-sm text-[#173D2A] focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:border-[#286B43]"
                       />
                     </div>
                   </div>
                 </div>
 
+                {/* Section: Your Harvest at a Glance (Live Summary Panel) */}
+                <div className="card-softwhite p-5 rounded-2xl border border-[#286B43]/25 shadow-xs space-y-4">
+                  {/* Panel Header */}
+                  <div className="flex items-center justify-between pb-3 border-b border-[#286B43]/15">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-[#173D2A] text-[#E7C96B] flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                        🌾
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-[#173D2A] uppercase tracking-wider">
+                          {t('harvestAtAGlance')}
+                        </h4>
+                        <p className="text-[11px] text-[#52604D]">
+                          {t('harvestSummarySubtitle')}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                      totalProduceWeight > 0 && district
+                        ? 'bg-[#EAF4EE] text-[#173D2A] border border-[#286B43]/30'
+                        : 'bg-amber-50 text-amber-900 border border-amber-200'
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${totalProduceWeight > 0 && district ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                      <span>{totalProduceWeight > 0 && district ? t('summaryReadyToCalculate') : t('summaryPendingDetails')}</span>
+                    </span>
+                  </div>
+
+                  {/* Metrics Grid */}
+                  <div className="space-y-2.5 text-xs">
+                    {/* Produce & Quantity Row */}
+                    <div className="p-3 rounded-xl bg-[#FCFAF4] border border-[#286B43]/15 flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <Wheat className="w-4 h-4 text-[#286B43] shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <span className="text-[11px] font-bold text-[#52604D] uppercase tracking-wider block">
+                            {t('summaryCrop')}
+                          </span>
+                          {harvestType === 'single' ? (
+                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                              <span className="font-bold text-sm text-[#173D2A]">
+                                {crop ? getCropDisplayName(crop, language) : t('summaryNotSelected')}
+                              </span>
+                              {variety && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#EAF4EE] text-[#173D2A] border border-[#286B43]/20">
+                                  {variety}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="mt-0.5">
+                              <span className="font-bold text-sm text-[#173D2A]">
+                                {t('summaryMultiCropsCount', { count: multiCrops.filter(c => c.crop && parseFloat(c.quantity) > 0).length })}
+                              </span>
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {multiCrops.map((c, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] bg-[#EAF4EE] text-[#173D2A] border border-[#286B43]/20 font-medium"
+                                  >
+                                    <span>{getCropDisplayName(c.crop, language)}</span>
+                                    <span className="font-bold text-[#286B43]">
+                                      ({parseFloat(c.quantity) > 0 ? `${parseFloat(c.quantity).toLocaleString('en-IN')} kg` : '—'})
+                                    </span>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-[11px] font-bold text-[#52604D] uppercase tracking-wider block">
+                          {t('summaryQuantity')}
+                        </span>
+                        <span className="font-extrabold text-sm text-[#173D2A] mt-0.5 block">
+                          {totalProduceWeight > 0 ? (
+                            `${totalProduceWeight.toLocaleString('en-IN')} kg`
+                          ) : (
+                            <span className="text-[#52604D] font-normal italic">{t('summaryNotSpecified')}</span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Location & Transport 2-Col Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {/* Origin Location */}
+                      <div className="p-2.5 rounded-xl bg-[#FCFAF4] border border-[#286B43]/15">
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#52604D] uppercase tracking-wider mb-1">
+                          <MapPin className="w-3.5 h-3.5 text-[#286B43]" />
+                          <span>{t('summaryLocation')}</span>
+                        </div>
+                        <div className="font-semibold text-xs text-[#173D2A] truncate">
+                          {district ? (
+                            `${district}, ${state}`
+                          ) : (
+                            <span className="text-[#52604D] font-normal italic">{t('summaryNotSelected')}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Logistics Mode */}
+                      <div className="p-2.5 rounded-xl bg-[#FCFAF4] border border-[#286B43]/15">
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#52604D] uppercase tracking-wider mb-1">
+                          <Truck className="w-3.5 h-3.5 text-[#286B43]" />
+                          <span>{t('summaryLogistics')}</span>
+                        </div>
+                        <div className="font-semibold text-xs text-[#173D2A] truncate">
+                          {transportMode === 'dedicated_vehicle' ? (
+                            t('dedicatedVehicle')
+                          ) : (
+                            <span>
+                              {t('sharedLoad')}{' '}
+                              <span className="text-[10px] text-[#52604D] font-normal">
+                                ({sharedPricingBasis === 'distance_based' ? '₹/km' : 'fixed'})
+                              </span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Candidate Markets & Status Row */}
+                    <div className="p-3 rounded-xl bg-[#FCFAF4] border border-[#286B43]/15 space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1.5 font-bold text-[#173D2A]">
+                          <Scale className="w-3.5 h-3.5 text-[#286B43]" />
+                          <span>{t('summaryMarkets')}</span>
+                        </div>
+                        <span className="font-bold text-[#173D2A]">
+                          {markets.length > 0 ? (
+                            t('selectedMarketsCount', { count: markets.length })
+                          ) : (
+                            <span className="text-[11px] text-[#52604D] font-normal">{t('summaryAutoSelectHint')}</span>
+                          )}
+                        </span>
+                      </div>
+
+                      {markets.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-2 pt-1.5 border-t border-[#286B43]/10 text-[11px] text-[#52604D]">
+                          <span className="inline-flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#286B43]" />
+                            <span>
+                              {t('summaryPricesReported', {
+                                count: markets.filter((m) => m.price_available).length,
+                                total: markets.length,
+                              })}
+                            </span>
+                          </span>
+                          <span className="text-[#52604D]/40">•</span>
+                          <span className="inline-flex items-center gap-1">
+                            {markets.every((m) => m.transportCost && parseFloat(m.transportCost) > 0) ? (
+                              <span className="text-[#173D2A] font-semibold">
+                                ✓ {t('summaryAllQuotesPresent', { count: markets.length })}
+                              </span>
+                            ) : (
+                              <span>
+                                {t('summaryQuotesMissing', {
+                                  count: markets.filter((m) => !m.transportCost || parseFloat(m.transportCost) <= 0).length,
+                                })}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Optional adjustments pill (Transit Loss / Other Costs) if specified */}
+                    {(Boolean(parseFloat(lossPercentage) > 0) || Boolean(parseFloat(otherCosts) > 0)) && (
+                      <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[11px]">
+                        {parseFloat(lossPercentage) > 0 && (
+                          <span className="px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-900 font-medium">
+                            {t('summaryTransitLoss', { loss: lossPercentage })}
+                          </span>
+                        )}
+                        {parseFloat(otherCosts) > 0 && (
+                          <span className="px-2 py-0.5 rounded-md bg-[#FCFAF4] border border-[#286B43]/20 text-[#173D2A] font-medium">
+                            {t('summaryOtherCosts', { cost: parseFloat(otherCosts).toLocaleString('en-IN') })}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Primary Action Button & Live Progress */}
                 {isLoading ? (
-                  <div className="p-6 rounded-2xl bg-[#5E724C] text-white shadow-xl reveal-soft" role="status" aria-live="polite">
+                  <div className="p-6 rounded-2xl bg-[#173D2A] text-[#FFFDF7] border border-[#E7C96B]/30 shadow-xl reveal-soft" role="status" aria-live="polite">
                     <div className="flex items-center gap-3 mb-4">
-                      <Loader2 className="w-5 h-5 text-[#CC5500] animate-spin" />
-                      <span className="font-bold text-base tracking-wide">
+                      <Loader2 className="w-5 h-5 text-[#E7C96B] animate-spin" />
+                      <span className="font-bold text-base tracking-wide text-[#E7C96B]">
                         {t('calculating')}
                       </span>
                     </div>
@@ -1313,12 +1688,12 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                       ].map(([stepText, isDone]) => (
                         <div
                           key={stepText}
-                          className={`flex items-center gap-2.5 ${isDone ? 'text-white' : 'text-white/60'}`}
+                          className={`flex items-center gap-2.5 ${isDone ? 'text-[#FFFDF7]' : 'text-[#FFFDF7]/60'}`}
                         >
                           {isDone ? (
-                            <CheckCircle2 className="w-4 h-4 text-[#9CAF88] shrink-0" />
+                            <CheckCircle2 className="w-4 h-4 text-[#E7C96B] shrink-0" />
                           ) : (
-                            <Circle className="w-4 h-4 text-white/40 shrink-0" />
+                            <Circle className="w-4 h-4 text-[#FFFDF7]/40 shrink-0" />
                           )}
                           <span>{stepText}</span>
                         </div>
@@ -1328,10 +1703,10 @@ export default function FarmerInput({ onSubmit, isLoading }) {
                 ) : (
                   <button
                     type="submit"
-                    className="w-full btn-3d-amber py-4 px-6 text-base font-bold flex items-center justify-center gap-3 cursor-pointer shadow-xl"
+                    className="w-full btn-gold py-4 px-6 text-base font-bold flex items-center justify-center gap-3 cursor-pointer shadow-xl text-[#173D2A] focus:outline-none focus:ring-2 focus:ring-[#286B43] focus:ring-offset-2"
                   >
                     <span>🌾 {t('calculate')}</span>
-                    <Sparkles className="w-5 h-5 text-white animate-pulse" />
+                    <Sparkles className="w-5 h-5 text-[#173D2A] animate-pulse" />
                   </button>
                 )}
 

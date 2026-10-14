@@ -80,6 +80,9 @@ class MarketComparison(BaseModel):
     transport_error: str | None = None
     comparable: bool = True
     crop_breakdowns: list[dict[str, Any]] = []
+    shared_pricing_basis: str | None = None
+    shared_units_count: int | None = None
+    load_capacity_warning: str | None = None
 
 
 class RealizableProfitBreakdown(BaseModel):

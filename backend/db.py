@@ -197,10 +197,74 @@ def get_distinct_crops() -> list[str]:
         conn.close()
 
 
+def extract_genuine_variety(
+    raw_variety: str | None,
+    commodity: str | None = None,
+    market: str | None = None,
+) -> str | None:
+    """Extract and validate genuine cultivar variety from raw report strings.
+
+    Agmarknet market reports commonly format the variety column as
+    'Market Name - Variety' (e.g. 'Belur APMC - Hybrid', 'Bangarpet APMC - Tomato').
+    When no variety is recorded, the commodity name or market is often repeated.
+    This function parses genuine varieties (e.g. 'Hybrid', 'Local', 'Puna', 'Jalander')
+    and returns None when the entry is a market name, commodity name, or placeholder.
+    """
+    if not raw_variety or not isinstance(raw_variety, str):
+        return None
+    text = raw_variety.strip()
+    if not text:
+        return None
+
+    # Handle 'Market - Variety' patterns
+    if " - " in text:
+        parts = [p.strip() for p in text.split(" - ") if p.strip()]
+        candidate = parts[-1] if len(parts) >= 2 else text
+    elif " -" in text:
+        parts = [p.strip() for p in text.split(" -") if p.strip()]
+        candidate = parts[-1] if len(parts) >= 2 else text
+    elif "-" in text and any(w in text.upper() for w in ("APMC", "MKT", "MARKET")):
+        parts = [p.strip() for p in text.split("-") if p.strip()]
+        candidate = parts[-1] if len(parts) >= 2 else text
+    else:
+        candidate = text
+
+    candidate = candidate.strip()
+    if not candidate:
+        return None
+
+    cand_lower = candidate.casefold()
+
+    # Filter out market names, APMC identifiers, and Mandi text
+    if any(m_id in candidate.upper() for m_id in ("APMC", "MARKET", "MANDI", "SUB-MARKET")):
+        return None
+
+    if market and cand_lower == market.strip().casefold():
+        return None
+
+    # Filter out commodity names (e.g. 'Tomato', 'Onion', 'Potato')
+    if commodity and cand_lower == commodity.strip().casefold():
+        return None
+
+    known_crops = {
+        "tomato", "onion", "potato", "maize", "green chilli", "green chilly",
+        "chilli", "capsicum", "cabbage", "carrot", "bengal gram", "wheat", "rice",
+    }
+    if cand_lower in known_crops:
+        return None
+
+    # Filter out generic placeholder categories that are not genuine cultivar varieties
+    if cand_lower in ("other", "others", "general", "faq", "all", "none", "null", "average"):
+        return None
+
+    return candidate
+
+
 def get_varieties_for_crop(crop: str) -> list[str]:
-    """Return distinct recorded varieties associated with the selected crop."""
+    """Return distinct recorded genuine varieties associated with the selected crop."""
     if not crop or not crop.strip():
         return []
+    clean_crop = crop.strip()
     conn = get_connection()
     try:
         cur = conn.execute(
@@ -212,17 +276,18 @@ def get_varieties_for_crop(crop: str) -> list[str]:
               AND TRIM(variety) != ''
             ORDER BY TRIM(variety) COLLATE NOCASE ASC
             """,
-            (crop.strip(),),
+            (clean_crop,),
         )
         seen = set()
         varieties: list[str] = []
-        for (variety,) in cur.fetchall():
-            if not variety:
+        for (raw_variety,) in cur.fetchall():
+            if not raw_variety:
                 continue
-            cleaned = variety.strip()
-            if cleaned.lower() not in seen:
-                seen.add(cleaned.lower())
-                varieties.append(cleaned)
+            genuine = extract_genuine_variety(raw_variety, commodity=clean_crop)
+            if genuine and genuine.lower() not in seen:
+                seen.add(genuine.lower())
+                varieties.append(genuine)
+        varieties.sort(key=lambda v: v.casefold())
         return varieties
     finally:
         conn.close()

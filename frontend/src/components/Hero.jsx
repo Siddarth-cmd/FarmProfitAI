@@ -7,71 +7,52 @@ export default function Hero({ onFindMarket, onExploreMarkets }) {
   const isKn = language === 'kn'
 
   return (
-    <section className="relative overflow-hidden pt-14 pb-20 md:pt-20 md:pb-28 hero-botanical-sage">
-      {/* Soft directional sunlight atmosphere */}
-      <div className="absolute inset-0 pointer-events-none hero-sunlight-overlay" aria-hidden="true" />
+    <section className="relative overflow-hidden pt-16 pb-20 md:pt-24 md:pb-32 hero-cinematic-farmland">
+      {/* Golden hour sunlight diffusion overlay */}
+      <div className="absolute inset-0 pointer-events-none hero-golden-hour-overlay" aria-hidden="true" />
 
-      {/* Subtle botanical leaf silhouettes and topography contours */}
+      {/* Subtle organic botanical topography contours */}
       <div className="absolute inset-0 pointer-events-none select-none overflow-hidden" aria-hidden="true">
         <svg
-          className="absolute top-0 left-0 w-full h-full"
+          className="absolute top-0 left-0 w-full h-full opacity-20"
           viewBox="0 0 1440 640"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
           preserveAspectRatio="xMidYMid slice"
         >
-          {/* Top-left leaf cluster */}
           <path
-            d="M-30 90 C 60 20, 180 60, 200 160 C 110 180, 40 150, -30 90 Z"
-            fill="#3A472E"
-            opacity="0.16"
-          />
-          <path
-            d="M10 210 C 80 140, 180 160, 190 260 C 100 285, 30 255, 10 210 Z"
-            fill="#2A3B23"
-            opacity="0.10"
-          />
-          {/* Top-right leaf cluster */}
-          <path
-            d="M1280 50 C 1360 -20, 1460 30, 1470 130 C 1380 155, 1290 115, 1280 50 Z"
-            fill="#3A472E"
-            opacity="0.14"
-          />
-          {/* Horizontal contour lines */}
-          <path
-            d="M0 360 C 320 290, 680 430, 1060 310 C 1220 265, 1380 330, 1440 300"
-            stroke="#3A472E"
-            strokeWidth="1"
-            opacity="0.18"
+            d="M0 420 C 320 340, 680 480, 1060 360 C 1220 315, 1380 380, 1440 350"
+            stroke="#E7C96B"
+            strokeWidth="1.5"
+            strokeDasharray="6 6"
             fill="none"
           />
-          {/* Subtle amber accent dot */}
-          <circle cx="1060" cy="300" r="4" fill="#CC5500" opacity="0.45" />
+          <circle cx="1060" cy="360" r="5" fill="#E7C96B" />
         </svg>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        {/* Recomposed Editorial Hero Container: Focused, intentional, centered layout */}
+        {/* Editorial Hero Container: Centered, high-contrast typography */}
         <div className="max-w-4xl mx-auto text-center reveal-soft mb-16" lang={language}>
           {/* Category badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#F4F6F1]/85 border border-[#A7A7A7]/40 text-[#1E3019] text-xs font-bold tracking-widest uppercase mb-6 backdrop-blur-sm shadow-xs">
-            <Sparkles className="w-3.5 h-3.5 text-[#CC5500] shrink-0" />
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#112F20]/80 border border-[#E7C96B]/50 text-[#E7C96B] text-xs font-bold tracking-widest uppercase mb-6 backdrop-blur-md shadow-xs">
+            <Sparkles className="w-3.5 h-3.5 text-[#E7C96B] shrink-0" />
             <span>{t('heroBadge')}</span>
           </div>
 
           {/* Main headline */}
           <h1
-            className="hero-headline text-[#0F1E0C] mb-6 tracking-tight"
+            className="hero-headline mb-6 tracking-tight drop-shadow-sm"
             style={{
               fontFamily: isKn ? "'Noto Sans Kannada', 'Tunga', sans-serif" : "'Newsreader', Georgia, serif",
             }}
           >
             {t('heroTitle')}{' '}
             <span
-              className={`${isKn ? '' : 'italic font-normal'} text-[#1A2F17] inline-block`}
+              className={`${isKn ? '' : 'italic font-normal'} text-[#E7C96B] inline-block`}
               style={{
                 textDecoration: 'underline',
-                textDecorationColor: 'rgba(204,85,0,0.65)',
+                textDecorationColor: '#E7C96B',
                 textDecorationStyle: 'wavy',
                 textUnderlineOffset: '8px',
               }}
@@ -81,51 +62,51 @@ export default function Hero({ onFindMarket, onExploreMarkets }) {
           </h1>
 
           {/* Supporting description */}
-          <p className={`text-[#1A2F17] leading-relaxed mb-8 max-w-2xl mx-auto ${isKn ? 'text-base sm:text-lg font-medium' : 'text-lg sm:text-xl'}`}>
+          <p className={`text-[#F6F0E1]/90 leading-relaxed mb-8 max-w-2xl mx-auto ${isKn ? 'text-base sm:text-lg font-medium' : 'text-lg sm:text-xl'}`}>
             {t('heroDescription')}
           </p>
 
           {/* Dual Action CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-9">
             <button
               id="hero-find-market-btn"
               onClick={onFindMarket}
-              className="btn-primary w-full sm:w-auto"
+              className="btn-gold w-full sm:w-auto text-base px-7 py-3.5 shadow-md"
             >
-              <Sprout className="w-4 h-4 text-[#9CAF88] shrink-0" />
+              <Sprout className="w-5 h-5 text-[#173D2A] shrink-0" />
               <span>{t('findMarket')}</span>
-              <ArrowRight className="w-4 h-4 opacity-75 shrink-0" />
+              <ArrowRight className="w-5 h-5 text-[#173D2A] shrink-0" />
             </button>
 
             <button
               id="hero-explore-markets-btn"
               onClick={onExploreMarkets}
-              className="btn-secondary w-full sm:w-auto"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full font-bold text-sm sm:text-base text-[#FFFDF7] bg-[#173D2A]/70 hover:bg-[#286B43] border border-[#E7C96B]/40 hover:border-[#E7C96B] transition-all shadow-xs backdrop-blur-sm w-full sm:w-auto cursor-pointer"
             >
-              <Compass className="w-4 h-4 text-[#CC5500] shrink-0" />
+              <Compass className="w-5 h-5 text-[#E7C96B] shrink-0" />
               <span>{t('exploreMarkets')}</span>
-              <ArrowRight className="w-4 h-4 text-[#CC5500] shrink-0" />
+              <ArrowRight className="w-4 h-4 text-[#E7C96B] shrink-0" />
             </button>
           </div>
 
           {/* Live System Trust Signals Ribbon */}
-          <div className="inline-flex flex-wrap items-center justify-center gap-3 px-5 py-2.5 rounded-2xl bg-[#F4F6F1]/70 border border-[#A7A7A7]/40 text-xs text-[#1E3019] backdrop-blur-sm shadow-xs">
-            <div className="flex items-center gap-1.5 font-bold text-[#5E724C]">
-              <span className="w-2 h-2 rounded-full bg-[#5E724C] animate-pulse" />
-              <span>7 Database Crops</span>
+          <div className="inline-flex flex-wrap items-center justify-center gap-3 px-5 py-2.5 rounded-2xl bg-[#0E261A]/80 border border-[#286B43] text-xs text-[#F6F0E1] backdrop-blur-md shadow-xs">
+            <div className="flex items-center gap-1.5 font-bold text-[#E7C96B]">
+              <span className="w-2 h-2 rounded-full bg-[#E7C96B] animate-pulse" />
+              <span>{t('trustDatabaseCrops')}</span>
             </div>
-            <span className="text-[#A7A7A7]">•</span>
-            <span className="inline-flex items-center gap-1 font-medium">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#5E724C]" />
-              Agmarknet Verified Mandi Rates
+            <span className="text-[#286B43]">•</span>
+            <span className="inline-flex items-center gap-1 font-medium text-[#FFFDF7]">
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#E7C96B]" />
+              {t('trustAgmarknetRates')}
             </span>
-            <span className="text-[#A7A7A7]">•</span>
-            <span className="font-medium">Karnataka PWD Highway Routes</span>
+            <span className="text-[#286B43]">•</span>
+            <span className="font-medium text-[#F6F0E1]/80">{t('trustHighwayRoutes')}</span>
           </div>
         </div>
 
-        {/* Value Proposition Highlights: 3 Refined Botanical Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-10 border-t border-[#3A472E]/25 text-left">
+        {/* Value Proposition Highlights: 3 Refined Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-10 border-t border-[#286B43]/50 text-left">
           {[
             { icon: Scale,       titleKey: 'netReturnFirst',  descKey: 'netReturnFirstDesc' },
             { icon: ShieldCheck, titleKey: 'validatedData',   descKey: 'validatedDataDesc' },
@@ -133,14 +114,14 @@ export default function Hero({ onFindMarket, onExploreMarkets }) {
           ].map(({ icon: Icon, titleKey, descKey }) => (
             <div
               key={titleKey}
-              className="flex items-start gap-3.5 p-5 rounded-2xl bg-[#F4F6F1]/80 border border-[#A7A7A7]/35 backdrop-blur-sm hover:border-[#9CAF88] hover:bg-[#F4F6F1]/95 transition-all shadow-xs"
+              className="flex items-start gap-3.5 p-5 rounded-2xl bg-[#FFFDF7]/95 border border-[#286B43]/20 hover:border-[#E7C96B] hover:shadow-md transition-all text-[#20291F] shadow-sm"
             >
-              <div className="p-2.5 rounded-xl bg-[#5E724C] text-white shrink-0 shadow-xs">
-                <Icon className="w-4 h-4" />
+              <div className="p-2.5 rounded-xl bg-[#173D2A] text-[#E7C96B] shrink-0 shadow-xs">
+                <Icon className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-[#0F1E0C] uppercase tracking-wider">{t(titleKey)}</h4>
-                <p className="text-xs sm:text-sm text-[#1E3019] mt-1 leading-snug">{t(descKey)}</p>
+                <h4 className="text-xs font-bold text-[#173D2A] uppercase tracking-wider">{t(titleKey)}</h4>
+                <p className="text-xs sm:text-sm text-[#52604D] mt-1 leading-snug">{t(descKey)}</p>
               </div>
             </div>
           ))}

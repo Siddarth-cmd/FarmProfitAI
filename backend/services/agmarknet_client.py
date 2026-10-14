@@ -491,7 +491,13 @@ def _records_from_report(
         if not isinstance(row, dict):
             skipped += 1
             continue
-        label = _text(row.get("variety")) or market
+        raw_variety = _text(row.get("variety"))
+        from db import extract_genuine_variety
+        clean_variety = (
+            extract_genuine_variety(raw_variety, commodity=commodity, market=market)
+            if raw_variety
+            else None
+        )
         for date_key in dates:
             observed = _finite_number(row.get(date_key))
             parsed_date = _parse_date(date_key)
@@ -509,7 +515,7 @@ def _records_from_report(
                 records.append(
                     MarketPrice(
                         commodity=commodity,
-                        variety=label,
+                        variety=clean_variety,
                         state=state,
                         district=district or market,
                         market=market,

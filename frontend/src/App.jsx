@@ -72,7 +72,7 @@ function FarmProfitApp() {
   }
 
   return (
-    <div className="min-h-screen botanical-bg text-[#1D201C] flex flex-col font-sans selection:bg-[#9CAF88]/30 selection:text-[#1D201C]">
+    <div className="min-h-screen bg-[#F6F0E1]/40 text-[#20291F] flex flex-col font-sans selection:bg-[#E7C96B]/40 selection:text-[#173D2A]">
       {/* Main Navbar */}
       <Navbar
         activeTab={activeTab}
@@ -103,11 +103,11 @@ function FarmProfitApp() {
             {/* Error banner if recommendation failed */}
             {errorMessage && (
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
-                <div className="p-4 sm:p-5 rounded-2xl bg-[#F4F6F1] border border-[#CC5500]/35 text-[#1D201C] flex items-start gap-3 shadow-sm">
-                  <AlertCircle className="w-5 h-5 text-[#CC5500] shrink-0 mt-0.5" />
+                <div className="p-4 sm:p-5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 flex items-start gap-3 shadow-sm">
+                  <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-bold text-sm text-[#CC5500]">{t('marketDataNotice')}</h4>
-                    <p className="text-xs sm:text-sm text-[#4A5742] mt-0.5">{localizeBackendText(language, errorMessage)}</p>
+                    <h4 className="font-bold text-sm text-amber-900">{t('marketDataNotice')}</h4>
+                    <p className="text-xs sm:text-sm text-amber-800 mt-0.5">{localizeBackendText(language, errorMessage)}</p>
                   </div>
                 </div>
               </div>

@@ -307,3 +307,164 @@ def test_recommendation_api_shared_load_default_rates_without_custom_input():
     assert data["recommendation"]["recommended_market"] == "Mysore"
     assert data["recommendation"]["expected_net_return"] == (500 * 28.0) - 450.0
 
+
+# 8. Fixed-trip shared load without distance lookup
+def test_shared_load_fixed_trip_without_distance_lookup():
+    """Fixed-trip shared load does not depend on road distance lookup.
+    500 kg = 20 crates of 25kg. Flat rate = ₹35/crate.
+    Total transport = 20 * 35 = ₹700, even when distance is unavailable.
+    """
+    empty_dist_provider = MappingDistanceProvider({})  # No distance available
+    markets = [_market("Tumkur", modal_price=25.0)]
+    config = LogisticsConfig(
+        transport_mode="shared_load",
+        shared_rate_type="per_crate",
+        shared_pricing_basis="fixed_trip",
+        shared_rate=35.0,
+    )
+
+    result = recommend_market(
+        crop="Tomato",
+        quantity_kg=500,
+        farmer_location="Mandya",
+        markets=markets,
+        distance_provider=empty_dist_provider,
+        logistics_config=config,
+    )
+
+    assert result.recommended_market == "Tumkur"
+    assert result.transportation_cost == 700.0
+    assert result.expected_net_return == (500 * 25.0) - 700.0
+    assert result.ranked_markets[0].shared_units_count == 20
+    assert result.ranked_markets[0].shared_pricing_basis == "fixed_trip"
+    assert result.ranked_markets[0].distance_km is None
+
+
+# 9. Load capacity advisory warning
+def test_shared_load_capacity_warning_when_exceeding_threshold():
+    """When harvest is 3,000 kg (> 2,500 kg config limit), load_capacity_warning is populated."""
+    dist_provider = MappingDistanceProvider({"Kolar": 60.0})
+    markets = [_market("Kolar", modal_price=20.0)]
+    config = LogisticsConfig(
+        transport_mode="shared_load",
+        shared_rate_type="per_kg_per_km",
+        shared_pricing_basis="distance_based",
+        shared_rate_per_kg_per_km=0.03,
+    )
+
+    result = recommend_market(
+        crop="Tomato",
+        quantity_kg=3000,
+        farmer_location="Bangalore",
+        markets=markets,
+        distance_provider=dist_provider,
+        logistics_config=config,
+    )
+
+    assert result.recommended_market == "Kolar"
+    assert result.ranked_markets[0].load_capacity_warning is not None
+    assert "2,500 kg" in result.ranked_markets[0].load_capacity_warning
+    assert result.ranked_markets[0].shared_units_count == 3000
+
+
+# 10. Multi-crop missing transport safety
+def test_multicrop_missing_transport_not_treated_as_zero():
+    """Verify that in multi-crop calculation, a market with no road distance
+    and no entered quote is marked unavailable and NOT calculated as 0 transport cost.
+    """
+    client = TestClient(app)
+    payload = {
+        "crop": "Tomato",
+        "quantity_kg": 500,
+        "crops": [
+            {"crop": "Tomato", "quantity_kg": 300, "loss_percentage": 0},
+            {"crop": "Onion", "quantity_kg": 200, "loss_percentage": 0},
+        ],
+        "farmer_location": "NonExistentVillage123",
+        "state": "Karnataka",
+        "transport_mode": "shared_load",
+        "shared_pricing_basis": "distance_based",
+        "selected_markets": ["RemoteUnknownMarket"],
+        "transportation_costs": {},  # No quote entered!
+    }
+    response = client.post("/recommend", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    # Market cannot be recommended with 0 transport when data is missing
+    # Result must report unavailable or transport basis must be unavailable
+    if data["available"]:
+        best = data["recommendation"]
+        assert best["transport_cost_basis"] != "zero"
+        assert best["transportation_cost"] > 0
+    else:
+        assert data["available"] is False
+
+
+# 11. Multi-crop proportional freight allocation
+def test_multicrop_proportional_freight_allocation():
+    """Verify that multi-crop crop_breakdowns allocates freight proportionally
+    and computes net return contribution without duplicate transport deduction.
+    """
+    client = TestClient(app)
+    payload = {
+        "crop": "Tomato",
+        "quantity_kg": 500,
+        "crops": [
+            {"crop": "Tomato", "quantity_kg": 300, "loss_percentage": 0},
+            {"crop": "Onion", "quantity_kg": 200, "loss_percentage": 0},
+        ],
+        "farmer_location": "Mandya",
+        "state": "Karnataka",
+        "transport_mode": "shared_load",
+        "shared_pricing_basis": "fixed_trip",
+        "shared_rate_type": "per_kg",
+        "shared_rate": 2.0,  # ₹2/kg flat -> 500 kg = ₹1,000 transport total
+        "markets": [
+            {
+                "commodity": "Tomato",
+                "variety": "Local",
+                "state": "Karnataka",
+                "district": "Mandya",
+                "market": "Mysore",
+                "date": "2026-10-10",
+                "modal_price": 30.0,
+            },
+            {
+                "commodity": "Onion",
+                "variety": "Local",
+                "state": "Karnataka",
+                "district": "Mandya",
+                "market": "Mysore",
+                "date": "2026-10-10",
+                "modal_price": 25.0,
+            },
+        ],
+        "transportation_costs": {"Mysore": 1000.0},
+    }
+    response = client.post("/recommend", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["available"] is True
+    rec = data["recommendation"]
+    best = rec["ranked_markets"][0]
+    breakdowns = best["crop_breakdowns"]
+    assert len(breakdowns) == 2
+
+    # Tomato: 300 / 500 = 60% of ₹1,000 -> ₹600 freight
+    tomato = next(b for b in breakdowns if b["crop"] == "Tomato")
+    assert tomato["allocated_transport"] == 600.0
+    assert tomato["gross_revenue"] == 300 * 30.0  # 9,000
+    assert tomato["net_return"] == 9000.0 - 600.0  # 8,400
+
+    # Onion: 200 / 500 = 40% of ₹1,000 -> ₹400 freight
+    onion = next(b for b in breakdowns if b["crop"] == "Onion")
+    assert onion["allocated_transport"] == 400.0
+    assert onion["gross_revenue"] == 200 * 25.0  # 5,000
+    assert onion["net_return"] == 5000.0 - 400.0  # 4,600
+
+    # Total freight and net return equality
+    assert tomato["allocated_transport"] + onion["allocated_transport"] == best["transportation_cost"]
+    assert tomato["net_return"] + onion["net_return"] == best["net_return"]
+
+
+

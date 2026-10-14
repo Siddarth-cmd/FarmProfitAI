@@ -431,11 +431,17 @@ def recommend_market(
                     },
                 )()
             route_results[m_name] = distance_result
-            if (
-                distance_result.distance_km is None
-                or not math.isfinite(distance_result.distance_km)
-                or distance_result.distance_km < 0
-            ):
+            is_fixed_shared = (
+                logistics.transport_mode == "shared_load"
+                and logistics.shared_pricing_basis == "fixed_trip"
+            )
+            has_valid_distance = (
+                distance_result.distance_km is not None
+                and math.isfinite(distance_result.distance_km)
+                and distance_result.distance_km >= 0
+            )
+
+            if not has_valid_distance and not is_fixed_shared:
                 incomplete_markets.append(
                     MarketComparison(
                         name=m_name,
@@ -456,11 +462,12 @@ def recommend_market(
                     )
                 )
                 continue
+
             if logistics.transport_mode == "shared_load":
                 estimated_cost, rate_applied, rate_unit, rate_is_estimate, transport_err = (
                     calculate_shared_load_transport(
                         qty,
-                        distance_result.distance_km,
+                        distance_result.distance_km if has_valid_distance else None,
                         logistics,
                     )
                 )
@@ -623,6 +630,21 @@ def recommend_market(
             comparison.observation_date = str(source_record.date) if getattr(source_record, "date", None) else None
             comparison.source_provider = getattr(source_record, "source_provider", None)
             comparison.transport_mode = logistics.transport_mode
+            if logistics.transport_mode == "shared_load":
+                comparison.shared_pricing_basis = logistics.shared_pricing_basis
+                if logistics.shared_rate_type == "per_crate":
+                    comparison.shared_units_count = math.ceil(qty / logistics.crate_capacity_kg)
+                elif logistics.shared_rate_type == "per_bag":
+                    comparison.shared_units_count = math.ceil(qty / logistics.bag_capacity_kg)
+                else:
+                    comparison.shared_units_count = int(round(qty))
+
+                if qty > logistics.max_shared_capacity_kg:
+                    comparison.load_capacity_warning = (
+                        f"Harvest quantity ({qty:,.0f} kg) exceeds standard shared tempo capacity "
+                        f"({logistics.max_shared_capacity_kg:,.0f} kg). Consider hiring a dedicated vehicle."
+                    )
+
             if comparison.name in transport_rates:
                 r_app, r_unit, r_est, trips = transport_rates[comparison.name]
                 comparison.rate_applied = r_app

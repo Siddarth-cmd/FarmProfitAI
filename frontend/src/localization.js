@@ -19,6 +19,12 @@ const translations = {
     findMarket: 'Find My Best Market',
     exploreMarkets: 'Explore Markets',
     navForecast: 'AI Forecast',
+    listenInKannada: 'Listen in Kannada',
+    pauseAudio: 'Pause',
+    resumeAudio: 'Resume',
+    stopAudio: 'Stop',
+    kannadaVoiceUnavailable: 'Kannada speech voice is not available on this browser/device.',
+    kannadaVoiceNoticeTitle: 'Audio Notice',
     voiceDecisionReadout: 'Listen to Recommendation',
     voiceSpeaking: 'Speaking...',
     stopVoice: 'Stop Audio',
@@ -319,6 +325,14 @@ const translations = {
     fixedTripBasis: 'Fixed trip (flat amount)',
     sharedPricingDescDistance: 'Cost = Quantity (kg) × Rate × Distance (km). Leave blank for default ₹0.03/kg/km estimate.',
     sharedPricingDescFixed: 'Cost = Quantity × Rate (flat for full trip, not multiplied by distance).',
+    sharedPerKgRate: 'Per kg (₹/kg flat)',
+    sharedCapacityWarning: 'Harvest quantity ({qty} kg) exceeds standard shared tempo capacity (500–2,500 kg). A dedicated vehicle is recommended for large hauls.',
+    sharedPreviewTitle: 'Shared Load Calculation Preview',
+    sharedUnitsLabel: 'Packaging / Units',
+    sharedQuotePlaceholder: 'Shared quote (₹)',
+    sharedCandidateHelp: 'Optional: Enter your negotiated shared freight quote for specific mandis, or leave blank to use your selected shared load rate.',
+    simulatorTransportNote: 'Note: Transport cost reflects your initial {qty} kg haul under {mode}. Adjust manually if simulating a different vehicle or load.',
+    jointFreightNotice: 'Shared freight trip: All crops travel together in a single haul to minimize transport expense.',
 
     // Feature 2: Confidence & Freshness
     confidenceHigh: 'High Confidence',
@@ -438,6 +452,50 @@ const translations = {
     sourceVerifiedCache: 'Verified Cache',
     sourceDataGov: 'Data.gov.in',
     sourceAgmarknet: 'Agmarknet',
+
+    // Trust signals
+    trustDatabaseCrops: '7 Supported Crops',
+    trustAgmarknetRates: 'Agmarknet Verified Mandi Rates',
+    trustHighwayRoutes: 'Karnataka PWD Highway Routes',
+
+    // Forecast Explorer
+    forecastBadge: 'Karnataka APMC Price Intelligence',
+    forecastTitle: 'AI Price Forecast & Timing',
+    forecastDesc: 'Track Karnataka APMC wholesale arrivals, review verified historical observations, and understand whether to sell immediately or hold produce.',
+
+    // AI Timing Forecast
+    timingForecastTitle: 'AI Market Timing & Price Forecast',
+    timingRealtimeApmcFeed: 'Real-time APMC feed for {crop} at {market}',
+    timingDecisionHold: 'HOLD PRODUCE',
+    timingDecisionSell: 'SELL TODAY',
+    timingOptimalWindow: 'Optimal sell window: in {days} days ({date})',
+    timingLockIn: 'Lock in current market price immediately',
+    decisionLabel: 'Decision',
+
+    // Multi-Crop Manifest & Allocation
+    allocatedFreight: 'Allocated Freight',
+    netContribution: 'Net Contribution',
+    duplicateCropWarning: 'Each crop in the combined harvest manifest must be unique. Combine quantities into a single row.',
+
+    // Harvest at a glance summary panel
+    harvestAtAGlance: 'Your Harvest at a Glance',
+    harvestSummarySubtitle: 'Live manifest & logistics check',
+    summaryCrop: 'Produce',
+    summaryQuantity: 'Total Weight',
+    summaryLocation: 'Origin Farm',
+    summaryLogistics: 'Logistics',
+    summaryMarkets: 'Candidate Markets',
+    summaryNotSelected: 'Not selected',
+    summaryNotSpecified: 'Not specified',
+    summaryMultiCropsCount: '{count} Crops Manifest',
+    summaryAllQuotesPresent: 'All {count} quotes entered',
+    summaryQuotesMissing: '{count} custom quote(s) missing',
+    summaryAutoSelectHint: 'Auto-selects top Karnataka mandis',
+    summaryReadyToCalculate: 'Ready to calculate best return',
+    summaryPendingDetails: 'Fill required details to calculate',
+    summaryTransitLoss: 'Transit loss: {loss}%',
+    summaryOtherCosts: 'Other costs: ₹{cost}',
+    summaryPricesReported: '{count} of {total} reported',
   },
   kn: {
     language: 'ಕನ್ನಡ',
@@ -454,6 +512,12 @@ const translations = {
     findMarket: 'ನನ್ನ ಉತ್ತಮ ಮಾರುಕಟ್ಟೆ ಹುಡುಕಿ',
     exploreMarkets: 'ಮಾರುಕಟ್ಟೆಗಳನ್ನು ನೋಡಿ',
     navForecast: 'ಎಐ ಮುನ್ನೋಟ',
+    listenInKannada: 'ಕನ್ನಡದಲ್ಲಿ ಆಲಿಸಿ',
+    pauseAudio: 'ವಿರಾಮ',
+    resumeAudio: 'ಮುಂದುವರಿಸಿ',
+    stopAudio: 'ನಿಲ್ಲಿಸಿ',
+    kannadaVoiceUnavailable: 'ನಿಮ್ಮ ಸಾಧನ ಅಥವಾ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಕನ್ನಡ ಧ್ವನಿ ಬೆಂಬಲ ಲಭ್ಯವಿಲ್ಲ.',
+    kannadaVoiceNoticeTitle: 'ಧ್ವನಿ ಮಾಹಿತಿ',
     voiceDecisionReadout: 'ಶಿಫಾರಸನ್ನು ಆಲಿಸಿ',
     voiceSpeaking: 'ಧ್ವನಿ ಪ್ಲೇ ಆಗುತ್ತಿದೆ...',
     stopVoice: 'ನಿಲ್ಲಿಸಿ',
@@ -756,6 +820,13 @@ const translations = {
     fixedTripBasis: 'ನಿಗದಿತ ಟ್ರಿಪ್ (ಫ್ಲಾಟ್ ವೆಚ್ಚ)',
     sharedPricingDescDistance: 'ವೆಚ್ಚ = ಪ್ರಮಾಣ (ಕೆಜಿ) × ದರ × ದೂರ (ಕಿಮೀ). ಡೀಫಾಲ್ಟ್ ₹0.03/ಕೆಜಿ/ಕಿಮೀ ಅಂದಾಜಿಗಾಗಿ ಖಾಲಿ ಬಿಡಿ.',
     sharedPricingDescFixed: 'ವೆಚ್ಚ = ಪ್ರಮಾಣ × ದರ (ಪೂರ್ಣ ಟ್ರಿಪ್‌ಗೆ ನಿಗದಿತ, ದೂರದಿಂದ ಗುಣಿಸುವುದಿಲ್ಲ).',
+    sharedPerKgRate: 'ಪ್ರತಿ ಕೆಜಿಗೆ (ಫ್ಲಾಟ್ ₹/ಕೆಜಿ)',
+    sharedCapacityWarning: 'ಬೆಳೆಯ ಒಟ್ಟು ತೂಕ ({qty} ಕೆಜಿ) ಹಂಚಿಕೆಯ ವಾಹನದ ಸಾಮಾನ್ಯ ಸಾಮರ್ಥ್ಯಕ್ಕಿಂತ (೫೦೦–೨,೫೦೦ ಕೆಜಿ) ಹೆಚ್ಚಾಗಿದೆ. ದೊಡ್ಡ ಹೊರೆಗೆ ಪ್ರತ್ಯೇಕ ವಾಹನವನ್ನು ಬಳಸುವುದು ಸೂಕ್ತ.',
+    sharedPreviewTitle: 'ಹಂಚಿಕೆಯ ಸಾಗಣೆ ವೆಚ್ಚದ ಮುನ್ನೋಟ',
+    sharedUnitsLabel: 'ಘಟಕಗಳು / ಪ್ಯಾಕಿಂಗ್',
+    sharedQuotePlaceholder: 'ಹಂಚಿಕೆಯ ದರ (₹)',
+    sharedCandidateHelp: 'ಐಚ್ಛಿಕ: ನಿರ್ದಿಷ್ಟ ಮಾರುಕಟ್ಟೆಗಳಿಗೆ ನಿಮ್ಮ ನಿಗದಿತ ಹಂಚಿಕೆಯ ದರವನ್ನು ನಮೂದಿಸಿ, ಅಥವಾ ಆಯ್ಕೆಮಾಡಿದ ದರವನ್ನು ಬಳಸಲು ಖಾಲಿ ಬಿಡಿ.',
+    simulatorTransportNote: 'ಗಮನಿಸಿ: ಸಾರಿಗೆ ವೆಚ್ಚವು {mode} ಅಡಿಯಲ್ಲಿ ನಿಮ್ಮ ಆರಂಭಿಕ {qty} ಕೆಜಿ ಸಾಗಣೆಯನ್ನು ಆಧರಿಸಿದೆ. ಬೇರೆ ಹೊರೆಗೆ ಹಸ್ತಚಾಲಿತವಾಗಿ ಸರಿಹೊಂದಿಸಿ.',
 
     // Feature 2: Confidence & Freshness
     confidenceHigh: 'ಉನ್ನತ ವಿಶ್ವಾಸಾರ್ಹತೆ',
@@ -873,6 +944,50 @@ const translations = {
     sourceVerifiedCache: 'ಪರಿಶೀಲಿಸಿದ ಸಂಗ್ರಹ',
     sourceDataGov: 'Data.gov.in',
     sourceAgmarknet: 'Agmarknet',
+
+    // Trust signals
+    trustDatabaseCrops: '7 ಬೆಂಬಲಿತ ಬೆಳೆಗಳು',
+    trustAgmarknetRates: 'ಅಗ್ಮಾರ್ಕ್‌ನೆಟ್ ಪರಿಶೀಲಿಸಿದ ಮಂಡಿ ದರಗಳು',
+    trustHighwayRoutes: 'ಕರ್ನಾಟಕ ಪಿಡಬ್ಲ್ಯೂಡಿ ಹೆದ್ದಾರಿ ಮಾರ್ಗಗಳು',
+
+    // Forecast Explorer
+    forecastBadge: 'ಕರ್ನಾಟಕ ಎಪಿಎಂಸಿ ಮುನ್ನೋಟ',
+    forecastTitle: 'ಎಐ ಬೆಲೆ ಮುನ್ನೋಟ ಮತ್ತು ಸಮಯ',
+    forecastDesc: 'ಕರ್ನಾಟಕ ಎಪಿಎಂಸಿ ದರಗಳ ಮುನ್ನೋಟವನ್ನು ಪರಿಶೀಲಿಸಿ, ತಕ್ಷಣ ಮಾರಾಟ ಮಾಡಬೇಕೇ ಅಥವಾ ಕಾಯಬೇಕೇ ಎಂದು ನಿರ್ಧರಿಸಿ.',
+
+    // AI Timing Forecast
+    timingForecastTitle: 'ಎಐ ಮಾರುಕಟ್ಟೆ ಸಮಯ ಮತ್ತು ಬೆಲೆ ಮುನ್ನೋಟ',
+    timingRealtimeApmcFeed: '{market} ಮಂಡಿಯಲ್ಲಿ {crop} ಗಾಗಿ ನೇರ ಎಪಿಎಂಸಿ ದರ',
+    timingDecisionHold: 'ಉತ್ಪನ್ನವನ್ನು ಉಳಿಸಿಕೊಳ್ಳಿ (ಕಾಯಿರಿ)',
+    timingDecisionSell: 'ಇಂದೇ ಮಾರಾಟ ಮಾಡಿ',
+    timingOptimalWindow: 'ಸೂಕ್ತ ಮಾರಾಟ ಸಮಯ: {days} ದಿನಗಳಲ್ಲಿ ({date})',
+    timingLockIn: 'ಪ್ರಸ್ತುತ ಮಾರುಕಟ್ಟೆ ದರವನ್ನು ತಕ್ಷಣ ಲಾಕ್ ಮಾಡಿ',
+    decisionLabel: 'ನಿರ್ಧಾರ',
+
+    // Multi-Crop Manifest & Allocation
+    allocatedFreight: 'ಹಂಚಿಕೆಯ ಸಾಗಣೆ ವೆಚ್ಚ',
+    netContribution: 'ನಿವ್ವಳ ಆದಾಯ',
+    duplicateCropWarning: 'ಮಿಶ್ರ ಬೆಳೆ ಪಟ್ಟಿಯಲ್ಲಿ ಪ್ರತಿ ಬೆಳೆಯೂ ಪ್ರತ್ಯೇಕವಾಗಿರಬೇಕು. ಒಂದೇ ಬೆಳೆಯ ತೂಕವನ್ನು ಒಂದೇ ಸಾಲಿನಲ್ಲಿ ಸೇರಿಸಿ.',
+
+    // Harvest at a glance summary panel
+    harvestAtAGlance: 'ನಿಮ್ಮ ಸುಗ್ಗಿಯ ಸಾರಾಂಶ',
+    harvestSummarySubtitle: 'ಲೈವ್ ವಿವರ & ಸಾಗಣೆ ಪರಿಶೀಲನೆ',
+    summaryCrop: 'ಬೆಳೆ / ಸರಕು',
+    summaryQuantity: 'ಒಟ್ಟು ತೂಕ',
+    summaryLocation: 'ಜಮೀನಿನ ಸ್ಥಳ',
+    summaryLogistics: 'ಸಾಗಣೆ ವಿಧಾನ',
+    summaryMarkets: 'ಆಯ್ಕೆ ಮಾರುಕಟ್ಟೆಗಳು',
+    summaryNotSelected: 'ಆಯ್ಕೆಮಾಡಿಲ್ಲ',
+    summaryNotSpecified: 'ನಮೂದಿಸಿಲ್ಲ',
+    summaryMultiCropsCount: '{count} ಬೆಳೆಗಳ ಪಟ್ಟಿ',
+    summaryAllQuotesPresent: 'ಎಲ್ಲಾ {count} ದರ ನಮೂದಿಸಲಾಗಿದೆ',
+    summaryQuotesMissing: '{count} ದರ ನಮೂದಿಸಿಲ್ಲ',
+    summaryAutoSelectHint: 'ಅತ್ಯುತ್ತಮ ಕರ್ನಾಟಕ ಮಂಡಿಗಳನ್ನು ಸ್ವಯಂ ಆರಿಸಲಾಗುತ್ತದೆ',
+    summaryReadyToCalculate: 'ಲಾಭ ಲೆಕ್ಕಹಾಕಲು ಸಿದ್ಧವಾಗಿದೆ',
+    summaryPendingDetails: 'ಲೆಕ್ಕಹಾಕಲು ಅಗತ್ಯ ವಿವರಗಳನ್ನು ಭರ್ತಿ ಮಾಡಿ',
+    summaryTransitLoss: 'ಸಾಗಣೆ ನಷ್ಟ: {loss}%',
+    summaryOtherCosts: 'ಇತರ ವೆಚ್ಚಗಳು: ₹{cost}',
+    summaryPricesReported: '{total} ರಲ್ಲಿ {count} ಲಭ್ಯ',
   },
 }
 

@@ -23,6 +23,7 @@ class LogisticsConfig(BaseModel):
     shared_rate: float | None = Field(default=None, ge=0)
     crate_capacity_kg: float = Field(default=25.0, gt=0)  # Standard Karnataka tomato/vegetable crate: 25 kg
     bag_capacity_kg: float = Field(default=50.0, gt=0)    # Standard onion/potato gunny bag: 50 kg
+    max_shared_capacity_kg: float = Field(default=2500.0, gt=0)  # Standard rural shared tempo/pickup max payload: ~2,500 kg
     
     # Shared-load distance-based rate per kg per km if shared_rate not directly given
     shared_rate_per_kg_per_km: float = Field(default=0.03, ge=0)  # e.g., ₹0.03/kg/km (~₹30 for 1000kg over 1km)
@@ -31,7 +32,7 @@ class LogisticsConfig(BaseModel):
     distance_unit: str = "km"
     rate_is_illustrative: bool = True
 
-    @field_validator("vehicle_rate_per_km", "vehicle_capacity_kg", "crate_capacity_kg", "bag_capacity_kg", "shared_rate_per_kg_per_km")
+    @field_validator("vehicle_rate_per_km", "vehicle_capacity_kg", "crate_capacity_kg", "bag_capacity_kg", "shared_rate_per_kg_per_km", "max_shared_capacity_kg")
     @classmethod
     def finite_value(cls, value: float) -> float:
         if not math.isfinite(value):

@@ -15,6 +15,7 @@ from core.logistics import (
 from core.geography import KARNATAKA_STATE
 
 from models.market_models import MarketErrorDetails, MarketPrice
+from models.profit_models import MarketComparison
 from recommendation.recommendation_engine import (
     RecommendationResult,
     recommend_market,
@@ -332,29 +333,40 @@ def create_recommendation(request: RecommendationRequest) -> RecommendationRespo
         any_fallback = False
 
         for c_item in crops_to_process:
-            c_res = fetch_market_prices_with_fallback(
-                commodity=c_item.crop,
-                state=KARNATAKA_STATE,
-                district=None if explicit_market_names else request.district,
-                market_names=explicit_market_names,
-                limit=30,
-            )
-            if not c_res.available or not c_res.records:
-                return RecommendationResponse(
-                    available=False,
-                    recommendation=None,
-                    error=MarketErrorDetails(
-                        kind="data",
-                        message=f"No valid price records available for crop '{c_item.crop}' to compute combined harvest returns.",
-                    ),
-                    source=c_res.source,
-                    using_fallback=c_res.using_fallback,
+            if request.markets is not None:
+                matching = [
+                    m for m in request.markets
+                    if m.commodity and m.commodity.strip().lower() == c_item.crop.strip().lower()
+                ]
+                if not matching:
+                    matching = request.markets
+                c_records = matching
+                all_sources.add("custom_markets")
+            else:
+                c_res = fetch_market_prices_with_fallback(
+                    commodity=c_item.crop,
+                    state=KARNATAKA_STATE,
+                    district=None if explicit_market_names else request.district,
+                    market_names=explicit_market_names,
+                    limit=30,
                 )
-            if c_res.source:
-                all_sources.add(c_res.source)
-            if c_res.using_fallback:
-                any_fallback = True
-            commodity_records[c_item.crop] = c_res.records
+                if not c_res.available or not c_res.records:
+                    return RecommendationResponse(
+                        available=False,
+                        recommendation=None,
+                        error=MarketErrorDetails(
+                            kind="data",
+                            message=f"No valid price records available for crop '{c_item.crop}' to compute combined harvest returns.",
+                        ),
+                        source=c_res.source,
+                        using_fallback=c_res.using_fallback,
+                    )
+                if c_res.source:
+                    all_sources.add(c_res.source)
+                if c_res.using_fallback:
+                    any_fallback = True
+                c_records = c_res.records
+            commodity_records[c_item.crop] = c_records
 
         # 2. Find destinations that have valid records for ALL commodities in the harvest
         # Map by normalized market name
@@ -427,35 +439,71 @@ def create_recommendation(request: RecommendationRequest) -> RecommendationRespo
                 dist_km = None
                 rate_applied = combined_transport
                 rate_unit = "quote"
-            elif dist_provider is not None:
-                try:
-                    d_res = dist_provider.get_distance_km(request.farmer_location.strip(), m_name)
-                    dist_km = d_res.distance_km
-                except Exception:
-                    dist_km = None
+            else:
+                dist_km = None
+                if dist_provider is not None:
+                    try:
+                        d_res = dist_provider.get_distance_km(request.farmer_location.strip(), m_name)
+                        dist_km = d_res.distance_km
+                    except Exception:
+                        dist_km = None
                 
-                if dist_km is None:
+                is_fixed_shared = (
+                    logistics.transport_mode == "shared_load"
+                    and logistics.shared_pricing_basis == "fixed_trip"
+                )
+                has_valid_distance = (
+                    dist_km is not None and math.isfinite(dist_km) and dist_km >= 0
+                )
+                
+                if not has_valid_distance and not is_fixed_shared:
+                    # Do not treat missing distance/quote as 0 transport
                     continue
                 
                 if logistics.transport_mode == "shared_load":
                     cost, rate_applied, rate_unit, rate_is_estimate, _ = calculate_shared_load_transport(
-                        total_quantity, dist_km, logistics
+                        total_quantity, dist_km if has_valid_distance else None, logistics
                     )
-                    combined_transport = cost if cost is not None else 0.0
+                    combined_transport = cost
                     trips_count = 1
                 else:
                     cost, rate_applied, rate_unit, rate_is_estimate, trips_count, _ = calculate_dedicated_vehicle_transport(
                         total_quantity, dist_km, logistics
                     )
-                    combined_transport = cost if cost is not None else 0.0
+                    combined_transport = cost
                 basis = "estimated"
-            else:
-                combined_transport = 0.0
-                basis = "unavailable"
-                dist_km = None
+
+            if combined_transport is None or not math.isfinite(combined_transport) or combined_transport < 0:
+                # Do not allow missing or negative transport costs to produce valid market recommendations
+                continue
+
+            units_count = None
+            cap_warning = None
+            if logistics.transport_mode == "shared_load":
+                if logistics.shared_rate_type == "per_crate":
+                    units_count = math.ceil(total_quantity / logistics.crate_capacity_kg)
+                elif logistics.shared_rate_type == "per_bag":
+                    units_count = math.ceil(total_quantity / logistics.bag_capacity_kg)
+                else:
+                    units_count = int(round(total_quantity))
+
+                if total_quantity > logistics.max_shared_capacity_kg:
+                    cap_warning = (
+                        f"Combined harvest ({total_quantity:,.0f} kg) exceeds standard shared tempo capacity "
+                        f"({logistics.max_shared_capacity_kg:,.0f} kg). Consider hiring a dedicated vehicle."
+                    )
 
             o_cost = request.other_costs if isinstance(request.other_costs, (int, float)) else request.other_costs.get(m_name, 0.0)
             net_ret = combined_gross - combined_transport - o_cost
+
+            # Allocate proportional freight and net return contribution to each commodity
+            for cb in crop_breakdowns:
+                share_ratio = cb["harvest_quantity_kg"] / total_quantity if total_quantity > 0 else 0.0
+                cb_transport = round(combined_transport * share_ratio, 2)
+                cb_other = round(o_cost * share_ratio, 2)
+                cb["allocated_transport"] = cb_transport
+                cb["allocated_other_costs"] = cb_other
+                cb["net_return"] = round(cb["gross_revenue"] - cb_transport - cb_other, 2)
 
             # Aggregate confidence: if any is low -> low; else if any is medium -> medium; else high
             confidences = [cb["confidence_level"] for cb in crop_breakdowns]
@@ -481,6 +529,9 @@ def create_recommendation(request: RecommendationRequest) -> RecommendationRespo
                     transport_cost_basis=basis,
                     confidence_level=overall_conf,
                     crop_breakdowns=crop_breakdowns,
+                    shared_pricing_basis=logistics.shared_pricing_basis if logistics.transport_mode == "shared_load" else None,
+                    shared_units_count=units_count,
+                    load_capacity_warning=cap_warning,
                 )
             )
 
